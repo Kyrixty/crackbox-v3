@@ -12,7 +12,3 @@ terminal = Terminal(TerminalOpts())
 @app.route("/test")
 def test():
     return "TEST PASSED"
-
-if __name__ == "__main__":
-    terminal.run()
-    uvicorn.run(app, reload=True)
