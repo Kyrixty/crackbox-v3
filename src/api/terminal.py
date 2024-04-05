@@ -7,12 +7,14 @@ from enum import Enum
 
 class MessageType(str, Enum):
     LOG = "LOG"
+    INFO = "INFO"
     WARN = "WARN"
     ERROR = "ERROR"
     DEBUG = "DEBUG"
 
 class TerminalOpts(BaseModel):
     can_log: bool = True
+    can_info: bool = True
     can_warn: bool = True
     can_error: bool = True
     can_debug: bool = True
@@ -32,15 +34,19 @@ class Terminal:
     def _display(self) -> None:
         os.system("cls" if os.name == "nt" else "clear")
         RESET = Back.RESET
-        MSG_TYPE_COLOR_MAP = {
-            MessageType.LOG: Back.GREEN,
-            MessageType.DEBUG: Back.BLUE,
-            MessageType.WARN: Back.YELLOW,
-            MessageType.ERROR: Back.RED,
+        MSG_TYPE_DATA_MAP = {
+            MessageType.LOG: (Back.GREEN, "LOG"),
+            MessageType.INFO: (Back.BLUE, "INFO"),
+            MessageType.DEBUG: (Back.CYAN, "DEBUG"),
+            MessageType.WARN: (Back.YELLOW, "WARN"),
+            MessageType.ERROR: (Back.RED, "ERROR"),
         }
         for msg in self.msgs:
-            color = MSG_TYPE_COLOR_MAP[msg.type]
-            print(f"{color}[LOG]{RESET} :: {msg.msg}")
+            data = MSG_TYPE_DATA_MAP[msg.type]
+            color = data[0]
+            label = data[1]
+
+            print(f"{color}[{label}]{RESET} :: {msg.msg}")
         
     def _add_msg(self, msg: TerminalMessage) -> None:
         self.msgs.append(msg)
@@ -48,6 +54,9 @@ class Terminal:
 
     def log(self, msg: str) -> None:
         self._add_msg(TerminalMessage(type=MessageType.LOG, msg=msg))
+    
+    def info(self, msg: str) -> None:
+        self._add_msg(TerminalMessage(type=MessageType.INFO, msg=msg))
     
     def debug(self, msg: str) -> None:
         self._add_msg(TerminalMessage(type=MessageType.DEBUG, msg=msg))

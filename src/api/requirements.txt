@@ -3,3 +3,4 @@ fastapi-jwt-auth
 colorama
 pydantic
 uvicorn[standard]
+requests
