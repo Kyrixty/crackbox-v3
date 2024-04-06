@@ -4,8 +4,9 @@ import os
 
 from pydantic import BaseModel
 from globals import CONFIG_TEST_PATH
-from typing import Tuple, List, Callable
+from typing import Tuple, List, Callable, Dict
 from terminal import Terminal, TerminalOpts
+from event import Event, Store
 
 t = Terminal(TerminalOpts())
 
@@ -73,11 +74,42 @@ def test_game_creation(config: Config) -> Tuple[int, int]:
     s = SuccessiveTests(tests=[test_game_create, test_game_join, test_game_leave])
     return s.run_tests(config)
 
+def test_event_store(config: Config) -> Tuple[int, int]:
+    dm: Dict[str, Event] = {}
+
+    class CustomEventA(Event[int]):
+        def start(self, data_collected) -> None:
+            self.data = 5
+            t.log(f"{data_collected['B']}")
+        def stop(self) -> None: ...
+    
+    class CustomEventB(Event[str]):
+        def start(self, data_collected) -> None:
+            self.data = "abc"
+            self.dc = data_collected
+            g = self.dc["A"].data
+            t.log(f"{g}")
+        def stop(self) -> None: ...
+    a, b = CustomEventA("A"), CustomEventB("B")
+
+    dm["A"] = a
+    dm["B"] = b
+
+    a.start(dm)
+    a.stop()
+
+    b.start(dm)
+    b.stop()
+
+    return 1, 1
+    
+
 def do_tests(config: Config) -> Tuple[int, int]:
     '''Returns number of tests correct, total number of tests'''
     # Test game creation
     TESTS = [
-        test_game_creation
+        test_game_creation,
+        test_event_store,
     ]
 
     t.log("Running tests")
@@ -87,7 +119,7 @@ def do_tests(config: Config) -> Tuple[int, int]:
         r = test(config)
         num_correct += r[0]
         total += r[1]
-    t.log(f"Tests finished, {num_correct} correct, {total} total")
+    t.info(f"Tests finished, {num_correct} correct, {total} total")
 
 def main() -> None:
     config = load_test_config()
