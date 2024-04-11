@@ -68,7 +68,10 @@ def test_game_creation(config: Config) -> Tuple[int, int]:
     def test_game_leave() -> bool:
         t.log("Testing game leave")
         r = requests.put(_get_url("/game/create"))
+        gid = str(r.json())
         r = requests.put(_get_url(f"/game/join/{str(r.json())}/test"))
+        token = r.json()["access_token"]
+        r = requests.put(_get_url(f"/game/leave/{gid}"), headers={"Authorization": f"Bearer {token}"})
         return r.ok
 
     s = SuccessiveTests(tests=[test_game_create, test_game_join, test_game_leave])
