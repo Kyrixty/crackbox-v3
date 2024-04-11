@@ -1,18 +1,38 @@
 import string
 
-from typing import Dict
+from typing import Dict, List, Any
 from player import Player, create_player
 from result import Result
 from utils import gen_rand_hex_color, gen_rand_str
+from event import Event
+from pydantic import BaseModel
+
+class GenericGameConfig(BaseModel):
+    '''A generic game config.
+    
+    `public` -> options the host can configure\n
+    `private` -> options that the host cannot configure but can be set
+    by the server operator.'''
+    public: dict[str, Any] = {}
+    private: dict[str, Any] = {}
 
 class Game:
+    '''Treated as abstract, custom games should inherit
+    from this class.'''
     def __init__(self) -> None:
         self.id = gen_rand_str(32, string.digits + string.ascii_uppercase)
         self.players: Dict[str, Player] = {}
+        self.events: List[Event] = []
+        self.config: GenericGameConfig = GenericGameConfig()
+        self.max_players = -1
     
     def join(self, p: Player) -> Result[Player]:
         r = Result()
+        if len(self.players) >= self.max_players and self.max_players != -1:
+            r.set_reason("Game is full!")
+            return r
         if p.username in self.players:
+            r.set_reason("Username taken")
             return r
         self.players[p.username] = p
         r.Ok(p)
@@ -21,6 +41,7 @@ class Game:
     def leave(self, u: str) -> Result[Player]:
         r = Result()
         if u not in self.players:
+            r.set_reason(f"Player not found with username {u}")
             return r
         p = self.players[u]
         del self.players[u]

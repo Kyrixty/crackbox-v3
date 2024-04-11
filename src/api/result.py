@@ -11,6 +11,7 @@ class Result(BaseModel, Generic[T]):
     to `None`."""
     data: T | None = None
     success: bool = False
+    reason: str = "No detail provided."
 
     def Ok(self, data: T) -> None:
         '''Sets the result's success to `True`,
@@ -23,6 +24,10 @@ class Result(BaseModel, Generic[T]):
         to `False`.'''
         self.success = False
         self.data = None
+    
+    def set_reason(self, msg: str) -> None:
+        '''Sets the reason of the `Result` to `msg`'''
+        self.reason = msg 
     
     class Config:
         arbitrary_types_allowed=True

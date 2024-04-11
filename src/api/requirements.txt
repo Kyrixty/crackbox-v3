@@ -4,3 +4,5 @@ colorama
 pydantic
 uvicorn[standard]
 requests
+authx
+authx-extra
