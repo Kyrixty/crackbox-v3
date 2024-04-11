@@ -25,6 +25,7 @@ class GameManager:
         data set to the game queried.'''
         r = Result()
         if not self.game_exists(game_id):
+            r.Fail(f"No game found with ID: {game_id}")
             return r
         r.Ok(self.games[game_id])
         return r
@@ -37,6 +38,12 @@ class GameManager:
 
 gm = GameManager()
 
+def get_game(id: str) -> Game:
+    res = gm.get_game(id)
+    if not res.success:
+        raise HTTPException(404, res.reason)
+    return res.data
+
 @router.put("/create")
 def create_game():
     g = gm.create_game()
@@ -44,20 +51,17 @@ def create_game():
 
 @router.put("/join/{id}/{username}")
 def join_game(id: str, username: str):
-    if not gm.game_exists(id):
-        raise HTTPException(404, f"No game found with ID: {id}")
-    r = gm.get_game(id)
+    g = get_game(id)
     p = create_player(username, 0, gen_rand_hex_color())
-    r = r.data.join(p)
+    r = g.join(p)
     if not r.success:
-        raise HTTPException(409, f"Username '{username}' taken")
-    return r
+        raise HTTPException(409, r.reason)
+    return r.success
 
 @router.put("/leave/{id}/{username}")
 def leave_game(id: str, username: str):
-    if not gm.game_exists(id):
-        raise HTTPException(409, f"No game found with ID: {id}")
-    r = gm.get_game(id).data.leave(username)
-    if not r.success:
-        raise HTTPException(409, f"No player with username '{username}'")
-    return r
+    g = get_game(id)
+    lr = g.leave(username)
+    if not lr.success:
+        raise HTTPException(404, lr.reason)
+    return lr.success

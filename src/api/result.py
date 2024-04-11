@@ -8,8 +8,9 @@ class Result(BaseModel, Generic[T]):
     a function/method/coroutine completed successfully.
     If it did, the `Result` also includes `data` as an
     attribute which can be of any type and defaults
-    to `None`."""
-    data: T | None = None
+    to `None`. Note that if a result is unsuccessful,
+    `data` will be `None`."""
+    data: T = None
     success: bool = False
     reason: str = "No detail provided."
 
@@ -18,16 +19,14 @@ class Result(BaseModel, Generic[T]):
         also sets `data`.'''
         self.success = True
         self.data = data
+        self.reason = "No detail provided."
     
-    def Fail(self) -> None:
+    def Fail(self, reason: str = "No reason provided.") -> None:
         '''Fails the result, setting its success state
         to `False`.'''
         self.success = False
         self.data = None
-    
-    def set_reason(self, msg: str) -> None:
-        '''Sets the reason of the `Result` to `msg`'''
-        self.reason = msg 
+        self.reason = reason
     
     class Config:
         arbitrary_types_allowed=True

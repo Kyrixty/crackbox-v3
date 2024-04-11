@@ -5,6 +5,7 @@ import os
 #### PATHS ####
 ###############
 ROOT_PATH = os.path.dirname(__file__)
+ENV_PATH = os.path.join(ROOT_PATH, ".env")
 CONFIG_PATH = os.path.join(ROOT_PATH, "config.json")
 CONFIG_TEST_PATH = os.path.join(ROOT_PATH, "config.test.json") # Config for test.py
 

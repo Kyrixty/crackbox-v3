@@ -29,10 +29,10 @@ class Game:
     def join(self, p: Player) -> Result[Player]:
         r = Result()
         if len(self.players) >= self.max_players and self.max_players != -1:
-            r.set_reason("Game is full!")
+            r.Fail("Game is full!")
             return r
         if p.username in self.players:
-            r.set_reason("Username taken")
+            r.Fail("Username taken")
             return r
         self.players[p.username] = p
         r.Ok(p)
@@ -41,12 +41,15 @@ class Game:
     def leave(self, u: str) -> Result[Player]:
         r = Result()
         if u not in self.players:
-            r.set_reason(f"Player not found with username {u}")
+            r.Fail(f"Player not found with username {u}")
             return r
         p = self.players[u]
         del self.players[u]
         r.Ok(p)
         return r
+    
+    def get_public_config(self) -> dict[str, Any]:
+        return self.config.public
     
     def kill(self) -> None:
         ...

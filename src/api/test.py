@@ -81,7 +81,8 @@ def test_event_store(config: Config) -> Tuple[int, int]:
         def start(self, data_collected) -> None:
             self.data = 5
             t.log(f"{data_collected['B']}")
-        def stop(self) -> None: ...
+            self.success = bool(data_collected['B'])
+        def stop(self) -> bool: return self.success
     
     class CustomEventB(Event[str]):
         def start(self, data_collected) -> None:
@@ -89,19 +90,23 @@ def test_event_store(config: Config) -> Tuple[int, int]:
             self.dc = data_collected
             g = self.dc["A"].data
             t.log(f"{g}")
-        def stop(self) -> None: ...
+            self.success = g == 5
+        def stop(self) -> bool: return self.success
     a, b = CustomEventA("A"), CustomEventB("B")
+
+    num_correct = 0
+    total = 2
 
     dm["A"] = a
     dm["B"] = b
 
     a.start(dm)
-    a.stop()
+    num_correct += a.stop()
 
     b.start(dm)
-    b.stop()
+    num_correct += b.stop()
 
-    return 1, 1
+    return num_correct, total
     
 
 def do_tests(config: Config) -> Tuple[int, int]:
