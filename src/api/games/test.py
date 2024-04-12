@@ -1,7 +1,10 @@
-from api.game import GenericGameConfig, Game, PublicConfig, PrivateConfig
+from game import GenericGameConfig, Game, PublicConfig, PrivateConfig
 
 DEFAULT_PUBLIC_ATTRS = {
-    "bonus_rounds": 10
+    "bonus_rounds": 10,
+    "value_a": "a",
+    "gorge": ["opt1", "opt2", "opt3"],
+    "green": True,
 }
 
 DEFAULT_PRIVATE_ATTRS = {
@@ -15,4 +18,5 @@ class Config(GenericGameConfig):
 class MyCustomGame(Game):
     def __init__(self) -> None:
         super().__init__()
+        self.config = Config()
         

@@ -1,0 +1,17 @@
+#form-container {
+    border: 1px dashed yellow;
+    background-color: black;
+    min-width: 16rem;
+}
+
+#join-form-root, #create-form-root {
+    padding: 2em;
+}
+
+#switch-text {
+    cursor: pointer;
+}
+
+#switch-text:hover {
+    color: rgb(173, 42, 173);
+}

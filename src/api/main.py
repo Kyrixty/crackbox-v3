@@ -1,10 +1,12 @@
 # Crackbox 1 & 2 were never released to the public. They were test builds where I figured out how to
 # not make this shit. Up to you to decide whether or not this should've been kept local too.
 import random
+import uvicorn
+import json
 import time
 import os
 
-from typing import Dict
+from typing import Dict, Any
 from result import Result
 from game import Game
 from player import create_player
@@ -19,10 +21,14 @@ from dotenv import load_dotenv
 from enum import Enum
 from metaenum import MetaEnum
 from games.champdup import ChampdUp, ChampdUpConfig
+from games.test import MyCustomGame
+from pydantic import BaseModel
 
 
 ## :: App setup
 load_dotenv(ENV_PATH)
+SIMULATE_LAG_MAX = 120
+SIMULATE_LAG_MIN = 10
 
 authConfig = AuthXConfig(
     JWT_ALGORITHM="HS256",
@@ -34,26 +40,23 @@ auth = AuthX(config=authConfig)
 auth.handle_errors(app)
 config = Config.load_config(CONFIG_PATH)
 terminal = Terminal(TerminalOpts())
-origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
-    "http://localhost",
-    "http://localhost:8080",
-]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
+    allow_headers=["Origin, Content-Type, Accept, Authorization"],
     allow_methods=["*"],
-    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # :: Game map
 class GameName(str, Enum, metaclass=MetaEnum):
     CHAMPDUP = "Champ'd Up"
+    TEST = "TEST"
 
 game_name_map: dict[GameName, Game] = {
-    GameName.CHAMPDUP: ChampdUp
+    GameName.CHAMPDUP: ChampdUp,
+    GameName.TEST: MyCustomGame,
 }
 
 
@@ -71,7 +74,7 @@ async def simulate_latency(request: Request, call_next):
     if not DEBUG or not config.simulate_lag:
         response = await call_next(request)
         return response
-    lag = random.randint(10, 60) # ms, both ways
+    lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms, both ways
     time.sleep(lag/1000) # since sleep() takes seconds
     response = await call_next(request)
     time.sleep(lag/1000)
@@ -104,11 +107,20 @@ class GameManager:
     def game_exists(self, game_id: str) -> bool:
         return game_id in self.games
 
-    def create_game(self) -> Game:
+    def create_game(self, name: GameName, config: dict[str, Any]) -> Result[Game]:
         '''Creates a `Game` and binds it to its id.'''
-        g = Game()
-        self.games[g.id] = g
-        return g
+        r = Result()
+        if name not in game_name_map:
+            r.Fail(f"Game with name '{name}' not found.")
+            return r
+        g: Game = game_name_map[name]()
+        errs = g.load_public_config(config)
+        if not len(errs):
+            self.games[g.id] = g
+            r.Ok(g)
+            return r
+        r.Fail(json.dumps(errs))
+        return r
     
     def get_game(self, game_id: str) -> Result[Game]:
         '''Returns a `Result` which, if successful, has
@@ -134,10 +146,16 @@ def get_game(id: str) -> Game:
         raise HTTPException(404, res.reason)
     return res.data
 
-@game_router.put("/create")
-def create_game():
-    g = gm.create_game()
-    return g.id
+class GameCreatePayload(BaseModel):
+    config: dict[str, Any]
+
+@game_router.post("/create/{name}")
+def create_game(name: str, config: GameCreatePayload):
+    r: Result[Game] = gm.create_game(name, config.config)
+    if not r.success:
+        code = 404 if r.reason == f"Game with name '{name}' not found." else 400
+        raise HTTPException(code, r.reason)
+    return r.data.id
 
 @game_router.put("/join/{id}/{username}")
 def join_game(id: str, username: str):
@@ -179,5 +197,14 @@ def get_game_fields(name: GameName):
 def get_game_names() -> list[str]:
     return list(game_name_map.keys())
 
+@game_router.get("/config/{id}")
+def get_game_public_config(id: str):
+    # TODO (future RT): Should require host JWT token
+    g = get_game(id)
+    return g.config.public
+
 # :: Include routers
 app.include_router(game_router)
+
+if __name__ == "__main__":
+    uvicorn.run(app)
