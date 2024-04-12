@@ -1,11 +1,27 @@
 import string
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 from player import Player, create_player
 from result import Result
 from utils import gen_rand_hex_color, gen_rand_str
 from event import Event
 from pydantic import BaseModel
+from enum import Enum
+from metaenum import MetaEnum
+
+class ConfigFieldType(str, Enum, metaclass=MetaEnum):
+    BOOL = "BOOL"
+    NUMBER = "NUMBER"
+    STRING = "STRING"
+    SELECT = "SELECT"
+
+class ConfigField(BaseModel):
+    name: str
+    type: ConfigFieldType
+    value: Union[int, str, list]
+
+PublicConfig = dict[str, Any]
+PrivateConfig = dict[str, Any]
 
 class GenericGameConfig(BaseModel):
     '''A generic game config.
@@ -13,8 +29,25 @@ class GenericGameConfig(BaseModel):
     `public` -> options the host can configure\n
     `private` -> options that the host cannot configure but can be set
     by the server operator.'''
-    public: dict[str, Any] = {}
-    private: dict[str, Any] = {}
+    public: PublicConfig = {}
+    private: PrivateConfig = {}
+
+    def transpile_public_fields(self) -> list[ConfigField]:
+        '''Converts all public fields to `ConfigField`s, which
+        help the frontend determine what the type of a field is.'''
+        type_fieldtype_map = {
+            bool: ConfigFieldType.BOOL,
+            int: ConfigFieldType.NUMBER,
+            str: ConfigFieldType.STRING,
+            list: ConfigFieldType.SELECT,
+        }
+        fields: list[ConfigField] = []
+        for k, v in self.public.items():
+            k: str = k # type hints don't wanna work!
+            for fieldtype in type_fieldtype_map:
+                if type(v) == fieldtype:
+                    fields.append(ConfigField(name=k, type=type_fieldtype_map[fieldtype], value=v))
+        return fields
 
 class Game:
     '''Treated as abstract, custom games should inherit
@@ -48,8 +81,12 @@ class Game:
         r.Ok(p)
         return r
     
-    def get_public_config(self) -> dict[str, Any]:
-        return self.config.public
+    def get_public_config_fields(self) -> list[ConfigField]:
+        return self.config.transpile_public_fields()
+    
+    def load_public_config(self, pub: PublicConfig) -> list[tuple[str, str]]:
+        '''Can be overridden if values need to be validated.'''
+        self.config.public = pub
     
     def kill(self) -> None:
         ...

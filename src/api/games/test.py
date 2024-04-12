@@ -1,4 +1,4 @@
-from api.routes.game_route import Game, GenericGameConfig
+from api.game import GenericGameConfig, Game, PublicConfig, PrivateConfig
 
 DEFAULT_PUBLIC_ATTRS = {
     "bonus_rounds": 10
@@ -9,8 +9,8 @@ DEFAULT_PRIVATE_ATTRS = {
 }
 
 class Config(GenericGameConfig):
-    public = DEFAULT_PUBLIC_ATTRS
-    private = DEFAULT_PRIVATE_ATTRS
+    public: PublicConfig = DEFAULT_PUBLIC_ATTRS
+    private: PrivateConfig = DEFAULT_PRIVATE_ATTRS
 
 class MyCustomGame(Game):
     def __init__(self) -> None:

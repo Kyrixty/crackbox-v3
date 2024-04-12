@@ -16,6 +16,9 @@ from config import Config
 from terminal import Terminal, TerminalOpts
 from globals import DEBUG, ROOT_PATH, ENV_PATH, CONFIG_PATH
 from dotenv import load_dotenv
+from enum import Enum
+from metaenum import MetaEnum
+from games.champdup import ChampdUp, ChampdUpConfig
 
 
 ## :: App setup
@@ -44,6 +47,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# :: Game map
+class GameName(str, Enum, metaclass=MetaEnum):
+    CHAMPDUP = "Champ'd Up"
+
+game_name_map: dict[GameName, Game] = {
+    GameName.CHAMPDUP: ChampdUp
+}
 
 
 with open(f"{ROOT_PATH}/msgs.txt", mode='r') as f:
@@ -156,6 +167,13 @@ def get_players(id: str):
 def get_leaderboard(id: str):
     g = get_game(id)
     return sorted(g.players.values(), key=lambda x: x.points, reverse=True)
+
+@game_router.get("/fields/{name}")
+def get_game_fields(name: GameName):
+    if name not in GameName:
+        raise HTTPException(404, f"Unknown game name '{name}'.")
+    g: Game = game_name_map[name]()
+    return g.get_public_config_fields()
 
 # :: Include routers
 app.include_router(game_router)
