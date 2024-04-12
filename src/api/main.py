@@ -1,6 +1,7 @@
 # Crackbox 1 & 2 were never released to the public. They were test builds where I figured out how to
 # not make this shit. Up to you to decide whether or not this should've been kept local too.
 import random
+import time
 import os
 
 from typing import Dict
@@ -8,12 +9,12 @@ from result import Result
 from game import Game
 from player import create_player
 from utils import gen_rand_hex_color
-from fastapi import APIRouter, HTTPException
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request, APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from config import Config
 from terminal import Terminal, TerminalOpts
-from globals import ROOT_PATH, ENV_PATH, CONFIG_PATH
+from globals import DEBUG, ROOT_PATH, ENV_PATH, CONFIG_PATH
 from dotenv import load_dotenv
 
 
@@ -30,8 +31,40 @@ auth = AuthX(config=authConfig)
 auth.handle_errors(app)
 config = Config.load_config(CONFIG_PATH)
 terminal = Terminal(TerminalOpts())
+origins = [
+    "http://localhost.tiangolo.com",
+    "https://localhost.tiangolo.com",
+    "http://localhost",
+    "http://localhost:8080",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 with open(f"{ROOT_PATH}/msgs.txt", mode='r') as f:
     msgs = f.readlines()
+
+terminal.log(f"Using config settings: {config}")
+
+if DEBUG:
+    terminal.warn("Running in DEBUG mode. May be simulating lag")
+
+# Setup lag simulation (if set to true in config.json)
+@app.middleware("http")
+async def simulate_latency(request: Request, call_next):
+    if not DEBUG or not config.simulate_lag:
+        response = await call_next(request)
+        return response
+    lag = random.randint(10, 60) # ms, both ways
+    time.sleep(lag/1000) # since sleep() takes seconds
+    response = await call_next(request)
+    time.sleep(lag/1000)
+    return response
 
 @app.route("/test")
 def test():
@@ -113,6 +146,16 @@ def leave_game(id: str, payload: TokenPayload = Depends(auth.access_token_requir
         raise HTTPException(404, lr.reason)
     revoke_token(token.token)
     return lr.success
+
+@game_router.get("/players/{id}")
+def get_players(id: str):
+    g = get_game(id)
+    return list(g.players.values())
+
+@game_router.get("/leaderboard/{id}")
+def get_leaderboard(id: str):
+    g = get_game(id)
+    return sorted(g.players.values(), key=lambda x: x.points, reverse=True)
 
 # :: Include routers
 app.include_router(game_router)

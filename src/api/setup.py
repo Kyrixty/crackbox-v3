@@ -18,8 +18,11 @@ class AppSetup:
         pass
 
     def _setup(self) -> None:
-        t.log("Saving config..")
-        Config().save_config(CONFIG_PATH)
+        if not os.path.isfile(CONFIG_PATH):
+            t.log("Saving config..")
+            Config().save_config(CONFIG_PATH)
+        else:
+            t.info("Found config.json, delete this file if you wish to return to default values.")
         t.log("Finished")
         t.log("Creating environment file..")
         with open(f"{ROOT_PATH}/.env", mode="w") as f:

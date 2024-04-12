@@ -69,12 +69,32 @@ def test_game_creation(config: Config) -> Tuple[int, int]:
         t.log("Testing game leave")
         r = requests.put(_get_url("/game/create"))
         gid = str(r.json())
-        r = requests.put(_get_url(f"/game/join/{str(r.json())}/test"))
-        token = r.json()["access_token"]
-        r = requests.put(_get_url(f"/game/leave/{gid}"), headers={"Authorization": f"Bearer {token}"})
-        return r.ok
+        r1 = requests.put(_get_url(f"/game/join/{str(r.json())}/test")) # Join with username 'test' -> PASS
+        r2 = requests.put(_get_url(f"/game/join/{str(r.json())}/test")) # Join with same username -> FAIL
+        token = r1.json()["access_token"]
+        r3 = requests.put(_get_url(f"/game/leave/{gid}"), headers={"Authorization": f"Bearer {token}"}) # Leave with username 'test' -> PASS
+        r4 = requests.put(_get_url(f"/game/leave/{gid}"), headers={"Authorization": f"Bearer {token}"}) # Leave with same username -> FAIL
+        #       PASS          FAIL        PASS          FAIL (hopefully)
+        return (r1.ok and not r2.ok) and (r3.ok and not r4.ok)
+    def test_game_players_and_leaderboard() -> bool:
+        t.log("Testing game players & leaderboard")
+        r = requests.put(_get_url("/game/create"))
+        gid = str(r.json())
+        NUM_JOINS = 5
+        NUM_LEAVES = 3
+        token_map = {}
+        for i in range(NUM_JOINS):
+            r = requests.put(_get_url(f"/game/join/{gid}/{i}"))
+            token_map[str(i)] = r.json()["access_token"]
+        for i in range(NUM_LEAVES):
+            r = requests.put(_get_url(f"/game/leave/{gid}"), headers={"Authorization": f"Bearer {token_map[str(i)]}"})
+        players = requests.get(_get_url(f"/game/players/{gid}")).json()
+        leaderboard = requests.get(_get_url(f"/game/leaderboard/{gid}")).json()
+        players, leaderboard = sorted(players, key=lambda x: x["username"]), sorted(leaderboard, key=lambda x: x["username"])
+        l1, l2 = len(players), len(leaderboard)
+        return l1 == l2 and [p["username"] for p in players] == [p["username"] for p in leaderboard]
 
-    s = SuccessiveTests(tests=[test_game_create, test_game_join, test_game_leave])
+    s = SuccessiveTests(tests=[test_game_create, test_game_join, test_game_leave, test_game_players_and_leaderboard])
     return s.run_tests(config)
 
 def test_event_store(config: Config) -> Tuple[int, int]:
@@ -83,7 +103,6 @@ def test_event_store(config: Config) -> Tuple[int, int]:
     class CustomEventA(Event[int]):
         def start(self, data_collected) -> None:
             self.data = 5
-            t.log(f"{data_collected['B']}")
             self.success = bool(data_collected['B'])
         def stop(self) -> bool: return self.success
     
@@ -92,23 +111,18 @@ def test_event_store(config: Config) -> Tuple[int, int]:
             self.data = "abc"
             self.dc = data_collected
             g = self.dc["A"].data
-            t.log(f"{g}")
             self.success = g == 5
         def stop(self) -> bool: return self.success
     a, b = CustomEventA("A"), CustomEventB("B")
 
     num_correct = 0
     total = 2
-
     dm["A"] = a
     dm["B"] = b
-
     a.start(dm)
     num_correct += a.stop()
-
     b.start(dm)
     num_correct += b.stop()
-
     return num_correct, total
     
 
@@ -127,6 +141,8 @@ def do_tests(config: Config) -> Tuple[int, int]:
         r = test(config)
         num_correct += r[0]
         total += r[1]
+    if num_correct < total:
+        t.warn("CAREFUL! Not all tests passed!")
     t.info(f"Tests finished, {num_correct} correct, {total} total")
 
 def main() -> None:

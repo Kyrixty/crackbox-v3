@@ -1,6 +1,8 @@
 #### NOTE: This file cannot import any project files
 import os
 
+DEBUG = False
+
 ###############
 #### PATHS ####
 ###############
