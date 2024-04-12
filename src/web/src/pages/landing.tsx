@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Checkbox,
+  Group,
   Loader,
   NativeSelect,
   NumberInput,
@@ -59,12 +60,15 @@ const ConfigViewer = ({
   const [viewing, setViewing] = useState(false);
   const [data, __setData] = useState<Map<string, FieldValueType>>(new Map());
 
-  
+  useEffect(() => {
+    __setData(new Map());
+  }, [currentConfig]);
+
   useEffect(() => setData(data), [data]);
-  
+
   const resolveField = (field: ConfigField) => {
     const _setData = (k: string, v: FieldValueType) => {
-      if (typeof(field.value) !== 'object') {
+      if (typeof field.value !== "object") {
         field.value = v;
       }
       __setData((d) => new Map(d.set(k, v)));
@@ -111,9 +115,12 @@ const ConfigViewer = ({
     <div id="config-viewer">
       {currentConfig && (
         <>
-          <Text onClick={() => setViewing(!viewing)} id="switch-text">
-            <IconListDetails /> Advanced options
-          </Text>
+          <Group align="center">
+            <IconListDetails />
+            <Text onClick={() => setViewing(!viewing)} id="switch-text">
+              Advanced options
+            </Text>
+          </Group>
           {viewing && (
             <ScrollArea h={100}>
               <Stack>{currentConfig.map((field) => resolveField(field))}</Stack>
@@ -127,9 +134,6 @@ const ConfigViewer = ({
 
 const CreateForm = (props: FormProps & CreateProps) => {
   const [selectedMode, setSelectedMode] = useState<string>(props.gameModes[0]);
-  const [cachedConfigs, setCachedConfigs] = useState<
-    Map<string, ConfigField[]>
-  >(new Map());
   const [currentConfig, setCurrentConfig] = useState<
     ConfigField[] | undefined
   >();
@@ -145,26 +149,16 @@ const CreateForm = (props: FormProps & CreateProps) => {
   }, [props.gameModes]);
 
   useEffect(() => {
-    console.log(selectedMode);
     if (!props.gameModes.includes(selectedMode)) return;
     setLoading(true);
     const api = getAPI();
     const doFetch = async () => {
       await api.get(`/game/fields/${selectedMode}`).then((res) => {
-        let configs = cachedConfigs;
-        configs.set(selectedMode, res.data);
-        setCachedConfigs(configs);
         setCurrentConfig(res.data);
         setLoading(false);
       });
     };
-
-    if (cachedConfigs.has(selectedMode)) {
-      setCurrentConfig(cachedConfigs.get(selectedMode));
-      setLoading(false);
-    } else {
-      doFetch();
-    }
+    doFetch();
   }, [selectedMode]);
 
   const handleCreateGame = async () => {
@@ -180,8 +174,6 @@ const CreateForm = (props: FormProps & CreateProps) => {
     });
   };
 
-  useEffect(() => console.log(configData), [configData])
-
   return (
     <div id="create-form-root">
       <Stack>
@@ -192,7 +184,9 @@ const CreateForm = (props: FormProps & CreateProps) => {
           onChange={(e) => setSelectedMode(e.currentTarget.value)}
         />
         {loading ? (
-          <Loader color="blue" />
+          <Group justify="center" align="center">
+            <Loader color="blue" />
+          </Group>
         ) : (
           <ConfigViewer currentConfig={currentConfig} setData={setConfigData} />
         )}
