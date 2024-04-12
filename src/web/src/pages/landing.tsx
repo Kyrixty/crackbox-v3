@@ -6,13 +6,12 @@ import {
   NativeSelect,
   NumberInput,
   ScrollArea,
-  Space,
   Stack,
   Text,
   TextInput,
   Title,
 } from "@mantine/core";
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { getAPI } from "@lib/api";
 import {
   ConfigField,
@@ -65,7 +64,9 @@ const ConfigViewer = ({
   
   const resolveField = (field: ConfigField) => {
     const _setData = (k: string, v: FieldValueType) => {
-      field.value = v;
+      if (typeof(field.value) !== 'object') {
+        field.value = v;
+      }
       __setData((d) => new Map(d.set(k, v)));
     };
     if (field.type === ConfigFieldType.BOOL) {

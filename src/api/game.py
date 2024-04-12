@@ -87,6 +87,7 @@ class Game:
     def load_public_config(self, pub: PublicConfig) -> list[tuple[str, str]]:
         '''Can be overridden if values need to be validated.'''
         self.config.public = pub
+        return []
     
     def kill(self) -> None:
         ...
