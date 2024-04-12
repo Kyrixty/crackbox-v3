@@ -175,5 +175,9 @@ def get_game_fields(name: GameName):
     g: Game = game_name_map[name]()
     return g.get_public_config_fields()
 
+@game_router.get("/names")
+def get_game_names() -> list[str]:
+    return list(game_name_map.keys())
+
 # :: Include routers
 app.include_router(game_router)
