@@ -8,3 +8,5 @@ authx
 authx-extra
 python-dotenv
 itsdangerous
+websockets
+broadcaster==0.2.0

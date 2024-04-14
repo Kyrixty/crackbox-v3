@@ -19,10 +19,13 @@ import {
   ConfigFieldType,
   FieldValueType,
 } from "@lib/gamemodeconfig";
-import { IconList, IconListDetails } from "@tabler/icons-react";
+import { IconListDetails } from "@tabler/icons-react";
 import "@/css/centered.css";
 import "@/css/landing.css";
-import { mapToJSON, mapToObj } from "@utils/map";
+import { mapToObj } from "@utils/map";
+import { useUserContext } from "@lib/context/user";
+import { useGameContext } from "@lib/context/game";
+import { redirect } from "@utils/redirect";
 
 interface FormProps {
   switch: () => void;
@@ -33,13 +36,34 @@ interface CreateProps {
 }
 
 const JoinForm = (props: FormProps) => {
+  const { gameId, setGameId } = useGameContext();
+  const { username, setUsername, setToken, setTicket, setIsHost } = useUserContext();
+
+  const handleJoin = async () => {
+    const api = getAPI();
+    await api.put(`/game/join/${gameId}/${username}`).then((res) => {
+      if (res.status === 200) {
+        setIsHost(false);
+        setToken(res.data.access_token);
+        setTicket(res.data.ticket);
+        redirect("/game")
+      }
+    });
+  };
+
   return (
     <div id="join-form-root">
       <Stack>
         <Title>Join</Title>
-        <TextInput placeholder="Username" />
-        <TextInput placeholder="Game ID" />
-        <Button fullWidth color="green">
+        <TextInput
+          placeholder="Username"
+          onChange={(e) => setUsername(e.currentTarget.value)}
+        />
+        <TextInput
+          placeholder="Game ID"
+          onChange={(e) => setGameId(e.currentTarget.value)}
+        />
+        <Button fullWidth color="green" onClick={handleJoin}>
           Join
         </Button>
         <Text id="switch-text" onClick={props.switch}>
@@ -134,6 +158,8 @@ const ConfigViewer = ({
 
 const CreateForm = (props: FormProps & CreateProps) => {
   const [selectedMode, setSelectedMode] = useState<string>(props.gameModes[0]);
+  const { setGameId } = useGameContext();
+  const { setIsHost, setToken, setTicket } = useUserContext();
   const [currentConfig, setCurrentConfig] = useState<
     ConfigField[] | undefined
   >();
@@ -167,7 +193,16 @@ const CreateForm = (props: FormProps & CreateProps) => {
     await api
       .post(`/game/create/${selectedMode}`, { config: mapToObj(configData) })
       .then((res) => {
-        id = res.data;
+        if (res.status === 200) {
+          const id = res.data.id;
+          const token: string = res.data.access_token;
+          const ticket: string = res.data.ticket;
+          setGameId(id);
+          setToken(token);
+          setTicket(ticket);
+          setIsHost(true);
+          redirect("/game");
+        }
       });
     await api.get(`/game/config/${id}`).then((res) => {
       console.log(res.data);

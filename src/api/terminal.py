@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from colorama import init, Back
 from typing import List
 from enum import Enum
+from globals import DEBUG
 
 class MessageType(str, Enum):
     LOG = "LOG"
@@ -25,7 +26,7 @@ class TerminalMessage(BaseModel):
 
 class Terminal:
     def __init__(self, opts: TerminalOpts, display_refresh_rate: float = 0.25) -> None:
-        self.opts = TerminalOpts
+        self.opts = opts
         self.refresh_rate = display_refresh_rate
         self.msgs: List[TerminalMessage] = []
         init(autoreset=True)
@@ -53,16 +54,21 @@ class Terminal:
         self._display()
 
     def log(self, msg: str) -> None:
-        self._add_msg(TerminalMessage(type=MessageType.LOG, msg=msg))
+        if self.opts.can_log:
+            self._add_msg(TerminalMessage(type=MessageType.LOG, msg=msg))
     
     def info(self, msg: str) -> None:
-        self._add_msg(TerminalMessage(type=MessageType.INFO, msg=msg))
+        if self.opts.can_info:
+            self._add_msg(TerminalMessage(type=MessageType.INFO, msg=msg))
     
     def debug(self, msg: str) -> None:
-        self._add_msg(TerminalMessage(type=MessageType.DEBUG, msg=msg))
+        if DEBUG and self.opts.can_debug:
+            self._add_msg(TerminalMessage(type=MessageType.DEBUG, msg=msg))
     
     def warn(self, msg: str) -> None:
-        self._add_msg(TerminalMessage(type=MessageType.WARN, msg=msg))
+        if self.opts.can_warn:
+            self._add_msg(TerminalMessage(type=MessageType.WARN, msg=msg))
     
     def error(self, msg: str) -> None:
-        self._add_msg(TerminalMessage(type=MessageType.ERROR, msg=msg))
+        if self.opts.can_error:
+            self._add_msg(TerminalMessage(type=MessageType.ERROR, msg=msg))
