@@ -269,7 +269,7 @@ export const LandingPage = () => {
   const [crackboxLogoArray, setCrackboxLogoArray] = useState<number[]>([]);
   const [gameModes, setGameModes] = useState<string[]>([]);
   const [msg, _] = useState(
-    minecraftTexts[randomIntFromInterval(0, minecraftTexts.length)]
+    minecraftTexts[randomIntFromInterval(0, minecraftTexts.length - 1)]
   );
   const im = isMobile();
 
