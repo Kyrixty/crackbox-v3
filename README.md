@@ -25,7 +25,7 @@ If this is your first time setting up and running the backend instance, you shou
 pip install -r requirements.txt
 python setup.py
 ```
-This will create a `config.json` under the current directory. You can turn on `simulate_lag` if in development.
+This will create a `config.json` under the current directory. You can turn on `simulate_lag@DEBUG` if in development.
 
 Note: the `DEBUG` flag in `src/api/globals.py` should be set to `False` in production. Please make sure you set it to `False`
 before deploying (or create a production pipeline to automatically do this).
