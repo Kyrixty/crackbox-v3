@@ -2,7 +2,9 @@ import {
   Box,
   Button,
   Checkbox,
+  Flex,
   Group,
+  Image,
   Loader,
   NativeSelect,
   NumberInput,
@@ -26,6 +28,9 @@ import { mapToObj } from "@utils/map";
 import { useUserContext } from "@lib/context/user";
 import { useGameContext } from "@lib/context/game";
 import { redirect } from "@utils/redirect";
+import { CrackboxLogoGrid } from "@components/crackbox";
+import { isMobile } from "@utils/ismobile";
+import { randomIntFromInterval } from "@utils/rand";
 
 interface FormProps {
   switch: () => void;
@@ -35,9 +40,32 @@ interface CreateProps {
   gameModes: string[];
 }
 
+const minecraftTexts = [
+  "Noob",
+  "JShmackas if you're reading this please give me a big smooch",
+  "Faggot",
+  "Okay but let's get off this shit and get on roll already",
+  "Buy BattleBit",
+  "If you're seeing this ask jcl if he's gay",
+  "More stable than OceanGate's submarine",
+  "😎",
+  "🍆🌋😵",
+  "We sell your data for practically any price",
+  "Only the finest Flipside engineering went into this",
+  "We mine BTC on your PC",
+  "No Hitler drawings",
+  "ur gay",
+  "Foozmon was here",
+  "Put Foozmon in the album",
+  "You got soft hands, boy",
+  "You're going to love your Desjardins agent",
+  "Baby dick or baby hands?",
+];
+
 const JoinForm = (props: FormProps) => {
   const { gameId, setGameId } = useGameContext();
-  const { username, setUsername, setToken, setTicket, setIsHost } = useUserContext();
+  const { username, setUsername, setToken, setTicket, setIsHost } =
+    useUserContext();
 
   const handleJoin = async () => {
     const api = getAPI();
@@ -46,7 +74,7 @@ const JoinForm = (props: FormProps) => {
         setIsHost(false);
         setToken(res.data.access_token);
         setTicket(res.data.ticket);
-        redirect("/game")
+        redirect("/game");
       }
     });
   };
@@ -238,9 +266,25 @@ const CreateForm = (props: FormProps & CreateProps) => {
 
 export const LandingPage = () => {
   const [mode, setMode] = useState<"create" | "join">("join");
+  const [crackboxLogoArray, setCrackboxLogoArray] = useState<number[]>([]);
   const [gameModes, setGameModes] = useState<string[]>([]);
+  const [msg, _] = useState(
+    minecraftTexts[randomIntFromInterval(0, minecraftTexts.length)]
+  );
+  const im = isMobile();
+
+  const stylePage = () => {
+    let arr = [];
+    const rows = 8; // 8 (250)
+    const cols = 9; // 9
+    for (let i = 0; i < rows * cols; i++) {
+      arr.push(i);
+    }
+    setCrackboxLogoArray(arr);
+  };
 
   useEffect(() => {
+    stylePage();
     const api = getAPI();
     const doFetch = async () => {
       await api.get("/game/names/").then((res) => {
@@ -252,15 +296,26 @@ export const LandingPage = () => {
 
   return (
     <div id="landing-root">
-      <div className="centered">
-        <Box id="form-container">
+      <CrackboxLogoGrid crackboxLogoArray={crackboxLogoArray} />
+      <Box id="landing-main-container">
+        <Group>
           {mode === "join" ? (
             <JoinForm switch={() => setMode("create")} />
           ) : (
             <CreateForm switch={() => setMode("join")} gameModes={gameModes} />
           )}
-        </Box>
-      </div>
+          {im && (
+            <Image
+              id="logo-name"
+              w={250}
+              src={"/imgs/crackbox-logo-name.png"}
+            />
+          )}
+        </Group>
+        <div id="minecraft-container">
+          <Text>{msg}</Text>
+        </div>
+      </Box>
     </div>
   );
 };

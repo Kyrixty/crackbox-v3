@@ -1,0 +1,22 @@
+.crackbox-logo-card > img {
+    transform: rotate(-20deg);
+    vertical-align: middle;
+    /* background: url('/fire.gif'); */
+    /* background-size: contain; */
+    /* background-repeat: no-repeat; */
+}
+
+#crackbox-logo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    animation: moveit linear infinite 5s;
+}
+
+@keyframes moveit {
+    0% {
+        transform: translate(-250px, -250px);
+    }
+    100% {
+        transform: translate(0px, -500px);
+    }
+}

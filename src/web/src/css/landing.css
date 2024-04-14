@@ -1,10 +1,26 @@
-#form-container {
+body {
+    overflow: hidden;
+}
+
+#landing-root {
+    overflow: hidden;
+    /* A little gross but it fixes the overflow problem */
+    height: 100vh;
+    background: radial-gradient(
+        circle,
+        rgba(60, 60, 60, 1) 0%,
+        rgba(1, 1, 1, 1) 87%
+    );
+}
+
+#landing-main-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     border: 1px dashed yellow;
     background-color: black;
     min-width: 16rem;
-}
-
-#join-form-root, #create-form-root {
     padding: 2em;
 }
 
@@ -14,4 +30,28 @@
 
 #switch-text:hover {
     color: rgb(173, 42, 173);
+}
+
+#minecraft-container {
+    position: fixed;
+    top: -5vh;
+    right: -5vw;
+    color: yellow;
+    text-align: justify;
+    text-shadow: 1px 1px black;
+    animation: minecraft 1s infinite;
+}
+
+@keyframes minecraft {
+    0% {
+        transform: scale(1) rotate(20deg);
+    }
+
+    50% {
+        transform: scale(1.5) rotate(20deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(20deg);
+    }
 }
