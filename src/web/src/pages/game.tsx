@@ -45,6 +45,10 @@ export const GamePage = () => {
   }, []);
 
   useEffect(() => {
+    g.setReadyState(readyState);
+  }, [readyState])
+
+  useEffect(() => {
     if (lastJsonMessage !== null) {
       // setMessageHistory((prev) => prev.concat(lastJsonMessage)); // add later?
       g.setLastJsonMessage(lastJsonMessage);
