@@ -46,6 +46,8 @@ DESCRIPTORS = [
   "Fuck you.",
   "Goblin",
   "Faggot",
+  "Retard",
+  "👨🏿",
 ];
 
 
