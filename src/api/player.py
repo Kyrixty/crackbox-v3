@@ -43,7 +43,7 @@ DESCRIPTORS = [
   "Shaggee",
   "Cooks steak too long",
   "Loves women",
-  "Fuck you."
+  "Fuck you.",
   "Goblin"
 ];
 
