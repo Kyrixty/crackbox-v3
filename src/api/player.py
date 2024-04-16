@@ -44,7 +44,8 @@ DESCRIPTORS = [
   "Cooks steak too long",
   "Loves women",
   "Fuck you.",
-  "Goblin"
+  "Goblin",
+  "Faggot",
 ];
 
 
