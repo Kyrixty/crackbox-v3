@@ -13,7 +13,7 @@ export type RJsonMessage<T> = {
   author: Player | 0;
 }
 
-const READYSTATE_MAP = {
+export const READYSTATE_MAP = {
   [ReadyState.CONNECTING]: "Connecting",
   [ReadyState.OPEN]: "Open",
   [ReadyState.CLOSING]: "Closing",

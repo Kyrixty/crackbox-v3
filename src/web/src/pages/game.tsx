@@ -1,4 +1,5 @@
 import { ChampdUp, MessageType } from "@components/champdup";
+import { DevConsole } from "@components/dev";
 import { useGameContext } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { useMessenger, JsonMessage, RJsonMessage } from "@lib/context/ws";
@@ -37,7 +38,7 @@ export const GamePage = () => {
 
   const { sendJsonMessage, lastJsonMessage, readyState } =
     useWebSocket<RJsonMessage<MessageType> | null>(socketUrl);
-  
+
   useEffect(() => {
     g.setSendJsonMessage(sendJsonMessage);
     g.setReadyState(readyState);
@@ -55,5 +56,10 @@ export const GamePage = () => {
     }
   }, [lastJsonMessage]);
 
-  return <div id="game-page-root">{RESOLVE_PROPER_GAME()}</div>;
+  return (
+    <div id="game-page-root">
+      <DevConsole />
+      {RESOLVE_PROPER_GAME()}
+    </div>
+  );
 };

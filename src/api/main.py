@@ -10,7 +10,7 @@ import os
 from typing import Dict, Any, Type
 from result import Result
 from game import Game
-from player import create_player
+from player import create_player, DESCRIPTORS
 from utils import gen_rand_hex_color, gen_rand_str
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
 from fastapi import FastAPI, Depends, Request, APIRouter, HTTPException, WebSocket
@@ -123,6 +123,7 @@ def resolve_ws_ticket(ticket: str, gameId: str) -> Result[str | int]:
 
 
 # :: Game Router
+
 game_router = APIRouter(prefix="/game")
 
 class GameManager:

@@ -21,23 +21,7 @@ export enum MessageType {
   CHAT = "CHAT",
 }
 
-const DESCRIPTORS = [
-  "Loves sex on the beach",
-  "Prefers baby dick over baby hands",
-  "short",
-  "PhD in Gayology",
-  "Liberal",
-  "Conservative Male",
-  "I (35M) have a wife (32F). AITA?",
-];
-
-const getRandDescription = () => {
-  const idx = randomIntFromInterval(0, DESCRIPTORS.length - 1);
-  return DESCRIPTORS[idx];
-};
-
 const PlayerCard = ({ p }: { p: Player }) => {
-  const [desc, setDesc] = useState(getRandDescription());
   const imgSrc = p.avatar_data_url
     ? p.avatar_data_url
     : "/imgs/crackbox-logo-2.png";
@@ -63,7 +47,7 @@ const PlayerCard = ({ p }: { p: Player }) => {
           </Title>
         </Group>
         <Text>
-          <i>{desc}</i>
+          <i>{p.bio}</i>
         </Text>
       </Card.Section>
     </Card>
