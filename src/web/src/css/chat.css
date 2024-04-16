@@ -6,3 +6,12 @@
     right: 5vw;
     padding: 10px;
 }
+
+#chat-notification {
+    position: absolute;
+    top: -5%;
+    right: -5%;
+    background-color: red;
+    padding: 5px;
+    border-radius: 50%;
+}

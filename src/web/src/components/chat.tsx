@@ -14,6 +14,7 @@ import "@/css/chat.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageType } from "./champdup";
 import { Player } from "@lib/player";
+import { useUserContext } from "@lib/context/user";
 
 export const ChatDrawer = () => {
   const viewport = useRef<HTMLDivElement>(null);
@@ -21,9 +22,20 @@ export const ChatDrawer = () => {
   const [msg, setMsg] = useState("");
   const [msgs, setMsgs] = useState<JSX.Element[]>([]);
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
+  const { username } = useUserContext();
+  const [shouldNotify, setShouldNotify] = useState(false);
+
+  const switchDrawer = () => {
+    if (!opened) {
+      setShouldNotify(false);
+      open();
+    } else {
+      close();
+    }
+  }
 
   useHotkeys([
-    ["tab", () => {opened ? close() : open()}],
+    ["tab", () => {switchDrawer()}],
   ])
 
   const createServerText = (suffix: string) => {
@@ -38,6 +50,10 @@ export const ChatDrawer = () => {
     if (lastJsonMessage === null) return;
     if (lastJsonMessage.type === MessageType.CHAT) {
       setMsgs([...msgs, resolveMsg(lastJsonMessage)]);
+      if (lastJsonMessage.author !== 0) {
+        const p = lastJsonMessage.author;
+        setShouldNotify(!opened && p.username !== username);
+      }
       scrollToBottom();
     }
     if (lastJsonMessage.type === MessageType.CONNECT) {
@@ -86,17 +102,18 @@ export const ChatDrawer = () => {
       behavior: "smooth",
     });
   }
-
+  
   return (
     <>
       <div id="chat-toggle">
         {!opened && (
-          <div id="chat-toggle" onClick={open}>
+          <div id="chat-toggle" onClick={switchDrawer}>
             <IconMessageCircle size={24} />
+            {shouldNotify && <div id="chat-notification" />}
           </div>
         )}
       </div>
-      <Drawer position="right" opened={opened} onClose={close} title="Chat">
+      <Drawer position="right" opened={opened} onClose={switchDrawer} title="Chat">
         <div id="chat-form-container">
           <Stack h="100%" align="stretch" justify="space-between">
             <ScrollArea

@@ -187,7 +187,7 @@ const ConfigViewer = ({
 const CreateForm = (props: FormProps & CreateProps) => {
   const [selectedMode, setSelectedMode] = useState<string>(props.gameModes[0]);
   const { setGameId } = useGameContext();
-  const { setIsHost, setToken, setTicket } = useUserContext();
+  const { setIsHost, setToken, setTicket, setUsername } = useUserContext();
   const [currentConfig, setCurrentConfig] = useState<
     ConfigField[] | undefined
   >();
@@ -229,6 +229,7 @@ const CreateForm = (props: FormProps & CreateProps) => {
           setToken(token);
           setTicket(ticket);
           setIsHost(true);
+          setUsername("Host");
           redirect("/game");
         }
       });
