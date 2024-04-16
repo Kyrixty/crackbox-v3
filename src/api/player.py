@@ -28,6 +28,23 @@ DESCRIPTORS = [
   "Conservative Male",
   "I (35M) have a wife (32F). AITA?",
   "Crosses their legs regularly",
+  "Frequent Jelqer",
+  "Live-Action Roleplayer",
+  "Enjoys pegging (receiving end)",
+  "❄️",
+  "Occasionally views gay porn",
+  "Sober",
+  "Slightly larger than average boner",
+  "Hates women",
+  "Limp dick",
+  "Pooface",
+  "Gay --->",
+  "Yung Slut",
+  "Shaggee",
+  "Cooks steak too long",
+  "Loves women",
+  "Fuck you."
+  "Goblin"
 ];
 
 
