@@ -314,6 +314,7 @@ class Game():
             return
         player = self.get_player(username).data.model_copy()
         if self.status == GameStatus.WAITING:
+            self.debug(f"LEAVING {username}")
             self.leave(username)
         player.connection_status = ConnectionStatus.DISCONNECTED
         await self.publish(

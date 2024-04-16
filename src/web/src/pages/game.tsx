@@ -57,6 +57,10 @@ export const GamePage = () => {
         setPlayers(lastJsonMessage.value.players);
         setLastPlayer(lastJsonMessage.value.target);
       }
+
+      if (lastJsonMessage.type === MessageType.DISCONNECT) {
+        setPlayers(lastJsonMessage.value.players);
+      }
     }
   }, [lastJsonMessage]);
 

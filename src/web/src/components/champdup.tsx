@@ -39,15 +39,15 @@ const PlayerCard = ({ p }: { p: Player }) => {
             order={im ? 5 : 3}
             style={{
               color: "white",
-              textShadow: "0px 0px 3px black",
+              textShadow: "2px 2px 1px black",
               lineClamp: 1,
             }}
           >
             {p.username}
           </Title>
         </Group>
-        <Text>
-          <i>{p.bio}</i>
+        <Text style={{textShadow: "1px 1px 1px black"}}>
+          <b><i>{p.bio}</i></b>
         </Text>
       </Card.Section>
     </Card>

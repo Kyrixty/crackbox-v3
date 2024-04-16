@@ -27,6 +27,7 @@ DESCRIPTORS = [
   "Liberal",
   "Conservative Male",
   "I (35M) have a wife (32F). AITA?",
+  "Crosses their legs regularly",
 ];
 
 

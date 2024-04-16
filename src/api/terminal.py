@@ -30,28 +30,23 @@ class Terminal:
         self.refresh_rate = display_refresh_rate
         self.msgs: List[TerminalMessage] = []
         init(autoreset=True)
-        self._add_msg(TerminalMessage(type=MessageType.LOG, msg="CB3 Terminal v0.1.0 now running."))
-
-    def _display(self) -> None:
-        #os.system("cls" if os.name == "nt" else "clear")
-        RESET = Back.RESET
-        MSG_TYPE_DATA_MAP = {
+        self.RESET = Back.RESET
+        self.MSG_TYPE_DATA_MAP = {
             MessageType.LOG: (Back.GREEN, "LOG"),
             MessageType.INFO: (Back.BLUE, "INFO"),
             MessageType.DEBUG: (Back.CYAN, "DEBUG"),
             MessageType.WARN: (Back.YELLOW, "WARN"),
             MessageType.ERROR: (Back.RED, "ERROR"),
         }
-        for msg in self.msgs:
-            data = MSG_TYPE_DATA_MAP[msg.type]
-            color = data[0]
-            label = data[1]
+        self._add_msg(TerminalMessage(type=MessageType.LOG, msg="CB3 Terminal v0.1.0 now running."))
 
-            print(f"{color}[{label}]{RESET} :: {msg.msg}")
+            
         
     def _add_msg(self, msg: TerminalMessage) -> None:
         self.msgs.append(msg)
-        self._display()
+        data = self.MSG_TYPE_DATA_MAP[msg.type]
+        color, label = data
+        print(f"{color}[{label}]{self.RESET} :: {msg.msg}")
 
     def log(self, msg: str) -> None:
         if self.opts.can_log:
