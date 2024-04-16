@@ -33,7 +33,7 @@ class Terminal:
         self._add_msg(TerminalMessage(type=MessageType.LOG, msg="CB3 Terminal v0.1.0 now running."))
 
     def _display(self) -> None:
-        os.system("cls" if os.name == "nt" else "clear")
+        #os.system("cls" if os.name == "nt" else "clear")
         RESET = Back.RESET
         MSG_TYPE_DATA_MAP = {
             MessageType.LOG: (Back.GREEN, "LOG"),

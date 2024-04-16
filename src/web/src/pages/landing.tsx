@@ -265,6 +265,7 @@ const CreateForm = (props: FormProps & CreateProps) => {
 };
 
 export const LandingPage = () => {
+  const game = useGameContext();
   const [mode, setMode] = useState<"create" | "join">("join");
   const [crackboxLogoArray, setCrackboxLogoArray] = useState<number[]>([]);
   const [gameModes, setGameModes] = useState<string[]>([]);
@@ -284,6 +285,7 @@ export const LandingPage = () => {
   };
 
   useEffect(() => {
+    game.reset();
     stylePage();
     const api = getAPI();
     const doFetch = async () => {

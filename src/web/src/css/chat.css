@@ -1,0 +1,8 @@
+#chat-toggle {
+    border-radius: 10px;
+    cursor: pointer;
+    position: fixed;
+    top: 5vh;
+    right: 5vw;
+    padding: 10px;
+}

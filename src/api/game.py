@@ -4,7 +4,7 @@ import anyio
 
 from typing import Dict, List, Any, Union, TypeVar, Literal, Generic, Callable
 from terminal import Terminal
-from player import Player, create_player, ConnectionStatus
+from player import Player, create_player, ConnectionStatus, get_author_as_host
 from result import Result
 from utils import gen_rand_hex_color, gen_rand_str
 from event import Event
@@ -98,11 +98,11 @@ class ProcessedMessage(BaseModel):
     action: Callable | None = None
     action_delay: float = 0
 
-    def add_msg(self, type: DefaultMessageTypes, val: Any) -> None:
-        self.msgs_to_send.append(MessageSchema(type=type, value=val))
+    def add_msg(self, type: DefaultMessageTypes, val: Any, author: Author) -> None:
+        self.msgs_to_send.append(MessageSchema(type=type, value=val, author=author))
     
-    def add_broadcast(self, type: DefaultMessageTypes, val: Any) -> None:
-        self.msgs_to_broadcast.append(MessageSchema(type=type, value=val))
+    def add_broadcast(self, type: DefaultMessageTypes, val: Any, author: Author) -> None:
+        self.msgs_to_broadcast.append(MessageSchema(type=type, value=val, author=author))
 
     def set_action(self, action: Callable | None) -> None:
         self.action = action
@@ -151,7 +151,7 @@ class Game():
     
     def join(self, p: Player) -> Result[Player]:
         r = Result()
-        if len(self.players) >= self.max_players and self.max_players != -1:
+        if not self.can_join():
             r.Fail("Game is full!")
             return r
         if p.username in self.players:
@@ -196,6 +196,8 @@ class Game():
     
     async def send(self, ws: WebSocket, msg: MessageSchema) -> None:
         try:
+            if msg.author == 0:
+                msg.author = get_author_as_host()
             await ws.send_json(msg.dict())
         except RuntimeError:
             self.debug(f"{ws} is closed, consider removing from self.room_conns :: SKIPPING SEND")
@@ -209,7 +211,7 @@ class Game():
             await self.publish(DefaultMessageTypes.HOST_CONNECT, self.get_player_list(), 0)
         else:
             self.players[username].connection_status = ConnectionStatus.CONNECTED
-            await self.publish(DefaultMessageTypes.CONNECT, self.get_player_list(), 0)
+            await self.publish(DefaultMessageTypes.CONNECT, {"players": self.get_player_list(), "target": self.get_player(username).data}, 0)
 
         async with anyio.create_task_group() as task_group:
 
@@ -228,61 +230,30 @@ class Game():
         """Handles incoming messages from a websocket.
 
         TODO: Add msg processing, currently just a msg broadcaster."""
-        async for msg in ws.iter_json():
-            ### Verify valid attributes
-            if not "type" in msg or not "value" in msg:
-                self.log(f"Unprocessable message from {wsId} with msg={msg}")
-                await self.send_error(ws)
-            else:
-                msg = MessageSchema(**msg, author=self.get_player(username).data)
-                self.plr_msg_logs[username].append(msg)
-                await self.process_message(ws, msg, username)
-    
-    async def ws_sender(self, ws: WebSocket, wsId: str, username: str | int) -> None:
-        """Sends all events received to a websocket."""
-        await ws.send_json({"HANDLE_SENDER_START": True})
-        await self.send(ws, MessageSchema(type=DefaultMessageTypes.PLAYERS, value=self.get_player_list(), author=0))
-        self.debug(f"{self.gameId}, {self.id}")
-        async with self.broadcast.subscribe(channel=self.gameId) as subscriber:
-            self.debug("SUBSCRIBED")
-            # Any event published to the subscriber
-            # should be broadcast to all clients.
-            self.debug(str(subscriber))
-            async for event in subscriber:
-                self.debug("EVENT DETECTED")
-                try:
-                    # if type(event.message) != dict and "mType" in event.message.__dict__:
-                    #     d: Dict = event.message.mType.__dict__
-                    #     event.message.mType = d[list(d.keys())[0]]
-                    if type(event.message) == MessageSchema:
-                        m: MessageSchema = event.message
-                        if m.type == self.message_type.START:
-                            self.log(
-                                f"{Fore.RED}START_GAME {Fore.CYAN}::{Fore.WHITE} WSID->{wsId} :: U->{username}"
-                            )
-                        if m.type == self.message_type.EVENT:
-                            self.log(
-                                f"{Fore.RED}EVENT_BROADCAST {Fore.CYAN}::{Fore.WHITE} WSID->{wsId} :: U->{username}"
-                            )
-                        event.message = event.message.dict()
-                    self.debug(f"SENDING EVENT {event.message}")
-                    await ws.send_json(event.message)
-                except Exception as e:
-                    print(f"{Fore.RED}FATAL (H:{username == 0}) :: {e}")
-                    self.log(f"Cannot send {event.message} to WS {wsId}. Is it closed?")
+        try:
+            async for msg in ws.iter_json():
+                ### Verify valid attributes
+                if not "type" in msg or not "value" in msg:
+                    self.log(f"Unprocessable message from {wsId} with msg={msg}")
+                    await self.send_error(ws)
+                else:
+                    msg = MessageSchema(**msg, author=username if username == 0 else self.get_player(username).data)
+                    await self.process_message(ws, msg, username)
+        except RuntimeError as e:
+            self.warn(f"{wsId} is closed. Error: {e}")
     
     async def process_message(self, ws: WebSocket, msg: MessageSchema, username: str | int) -> None:
         is_host = username == 0
         if is_host:
-            pm = await self._process_host_message(ws, msg, username)
+            pm = await self.process_host_message(ws, msg, username)
         else:
-            pm = await self._process_plyr_message(ws, msg, username)
+            pm = await self.process_plyr_message(ws, msg, username)
         for msg in pm.msgs_to_send:
             m = pm.pop_next_msg_to_send()
-            await self._send(ws, MessageSchema(type=m.type, value=m.value))
+            await self.send(ws, MessageSchema(type=m.type, value=m.value, author=username))
         for msg in pm.msgs_to_broadcast:
             m = pm.pop_next_msg_to_broadcast()
-            await self.publish(m.type, m.value, 0)
+            await self.publish(m.type, m.value, username if username == 0 else self.get_player(username).data)
             await anyio.sleep(0.05)
         if pm.action:
             if pm.action_delay > 0:
@@ -322,28 +293,32 @@ class Game():
             await self.disconnect(username)
     
     def can_join(self) -> bool:
+        self.debug(f"{len(self.players)}, {self.get_max_players()}")
         return (
-            self.get_max_players() == -1
+            self.get_max_players() < 0
             or len(self.players) < self.get_max_players()
         )
     
     def can_host(self) -> bool:
         return not self.host_connected and self.status != GameStatus.STOPPED
     
+    def can_play(self) -> bool:
+        return self.status != GameStatus.STOPPED
+    
     async def disconnect(self, username: str | int):
         isHost = username == HOST_USERNAME
         if isHost:
             self.host_connected = False
             self.log("The host has disconnected. Pausing game & waiting for them to reconnect.")
-            await self.publish(DefaultMessageTypes.HOST_DISCONNECT, self.get_player_list(), 0)
+            await self.publish(DefaultMessageTypes.HOST_DISCONNECT, {"players": self.get_player_list()}, 0)
             return
-        player = self.get_player(username).data
+        player = self.get_player(username).data.model_copy()
         if self.status == GameStatus.WAITING:
             self.leave(username)
         player.connection_status = ConnectionStatus.DISCONNECTED
         await self.publish(
             DefaultMessageTypes.DISCONNECT,
-            self.get_player_list(),
+            {"players": self.get_player_list(), "target": player},
             0
         )
         self.log(f"Player '{player.username}' has left")

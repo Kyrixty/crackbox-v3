@@ -257,7 +257,7 @@ async def check_websocket(ws: WebSocket, gameId: str, route_is_host: bool, ticke
         await ws.close(reason=GameError.BAD_ROUTE)
         return False
     game = gm.get_game(gameId).data
-    if is_host and not game.can_host() or not is_host and not game.can_join():
+    if is_host and not game.can_host() or not is_host and not game.can_play():
         await ws.close(reason=GameError.GAME_NOT_OPEN)
         return False
     return True

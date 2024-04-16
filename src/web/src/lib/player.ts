@@ -5,6 +5,7 @@ export enum ConnectionStatus {
 
 export type Player = {
   username: string;
+  is_host: boolean;
   points: number;
   color: string;
   avatar_data_url: string;

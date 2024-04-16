@@ -48,13 +48,20 @@ class ChampdUp(Game):
         self.max_players = self.config.public["max_players"]
         return errors
     
+    def validate_chat_msg(self, msg: MessageSchema) -> bool:
+        '''Assumes `msg.type` == `MessageType.CHAT`.'''
+        return type(msg.value) == str
+    
     async def process_host_message(self, ws: WebSocket, msg: MessageSchema, username: int) -> ProcessedMessage:
         pm = ProcessedMessage()
+        if msg.type == MessageType.CHAT:
+            if self.validate_chat_msg(msg):
+                pm.add_broadcast(msg.type, msg.value, 0)
         return pm
     
     async def process_plyr_message(self, ws: WebSocket, msg: MessageSchema, username: str) -> ProcessedMessage:
         pm = ProcessedMessage()
         if msg.type == MessageType.CHAT:
-            # later add chat commands via /
-            pm.add_broadcast(msg.type, msg.value)
+            if self.validate_chat_msg(msg):
+                pm.add_broadcast(msg.type, msg.value, self.get_player(username).data)
         return pm

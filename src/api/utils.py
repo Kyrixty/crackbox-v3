@@ -19,5 +19,5 @@ def gen_rand_str(l: int, chars: str = ALL_CHARS, join_str: str = "") -> str:
     return join_str.join([random.choice(chars) for _ in range(l)])
 
 def gen_rand_hex_color() -> str:
-    chars = string.digits + string.ascii_uppercase
+    chars = string.digits + "abcdef"
     return "#"+"".join(gen_rand_str(6, chars))
