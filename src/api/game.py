@@ -78,8 +78,10 @@ class DefaultMessageTypes(str, Enum, metaclass=MetaEnum):
     STOP = "STOP"
     CHAT = "CHAT"
 
-class MessageSchema(BaseModel):
-    type: DefaultMessageTypes
+T = TypeVar("T")
+
+class MessageSchema(BaseModel, Generic[T]):
+    type: DefaultMessageTypes | T
     value: Any
     author: Player | Literal[0]
 
@@ -116,7 +118,8 @@ class ProcessedMessage(BaseModel):
     def pop_next_msg_to_broadcast(self) -> MessageSchema | None:
         return self.msgs_to_broadcast.pop(0)
 
-class Game():
+
+class Game(Generic[T]):
     '''Treated as abstract, custom games should inherit
     from this class.'''
     def __init__(self, b: Broadcast, t: Terminal) -> None:
@@ -179,7 +182,7 @@ class Game():
         self.config.public = pub
         return []
     
-    async def publish(self, type: DefaultMessageTypes, value: Any, author: Author) -> None:
+    async def publish(self, type: DefaultMessageTypes | T, value: Any, author: Author) -> None:
         """Wrapper around `Game.broadcast.publish`.
         
         If `author` is 0, the message will be interpreted as a server message
@@ -198,7 +201,7 @@ class Game():
         try:
             if msg.author == 0:
                 msg.author = get_author_as_host()
-            await ws.send_json(msg.dict())
+            await ws.send_text(msg.json())
         except RuntimeError:
             self.debug(f"{ws} is closed, consider removing from self.room_conns :: SKIPPING SEND")
     
@@ -210,6 +213,9 @@ class Game():
         if isHost:
             await self.publish(DefaultMessageTypes.HOST_CONNECT, self.get_player_list(), 0)
         else:
+            if not username in self.players:
+                self.debug(f"{username} could not be found in player map. Did they disconnect in the lobby?")
+                await ws.close(reason="PLAYER NOT FOUND (DISCONNECTED?)")
             self.players[username].connection_status = ConnectionStatus.CONNECTED
             await self.publish(DefaultMessageTypes.CONNECT, {"players": self.get_player_list(), "target": self.get_player(username).data}, 0)
 

@@ -31,6 +31,7 @@ import { redirect } from "@utils/redirect";
 import { CrackboxLogoGrid } from "@components/crackbox";
 import { isMobile } from "@utils/ismobile";
 import { randomIntFromInterval } from "@utils/rand";
+import { toTitleCase } from "@utils/str";
 
 interface FormProps {
   switch: () => void;
@@ -125,10 +126,13 @@ const ConfigViewer = ({
       }
       __setData((d) => new Map(d.set(k, v)));
     };
+
+    const getFieldTitle = () => toTitleCase(field.name.replaceAll("_", " "));
+    
     if (field.type === ConfigFieldType.BOOL) {
       return (
         <Checkbox
-          label={field.name}
+          label={getFieldTitle()}
           checked={field.value as boolean}
           onChange={(e) => _setData(field.name, e.currentTarget.checked)}
         />
@@ -137,7 +141,7 @@ const ConfigViewer = ({
     if (field.type === ConfigFieldType.NUMBER) {
       return (
         <NumberInput
-          label={field.name}
+          label={getFieldTitle()}
           value={field.value as number}
           onChange={(e) => _setData(field.name, e)}
         />
@@ -146,7 +150,7 @@ const ConfigViewer = ({
     if (field.type === ConfigFieldType.SELECT) {
       return (
         <NativeSelect
-          label={field.name}
+          label={getFieldTitle()}
           data={field.value as []}
           onChange={(e) => _setData(field.name, e.currentTarget.value)}
         />
@@ -155,8 +159,8 @@ const ConfigViewer = ({
     if (field.type === ConfigFieldType.STRING) {
       return (
         <TextInput
-          placeholder={field.name}
-          label={field.name}
+          placeholder={getFieldTitle()}
+          label={getFieldTitle()}
           value={field.value as string}
           onChange={(e) => _setData(field.name, e.currentTarget.value)}
         />
@@ -174,7 +178,7 @@ const ConfigViewer = ({
             </Text>
           </Group>
           {viewing && (
-            <ScrollArea h={100}>
+            <ScrollArea h={100} offsetScrollbars p={10}>
               <Stack>{currentConfig.map((field) => resolveField(field))}</Stack>
             </ScrollArea>
           )}

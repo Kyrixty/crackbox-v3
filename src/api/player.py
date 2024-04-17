@@ -37,7 +37,7 @@ DESCRIPTORS = [
   "Slightly larger than average boner",
   "Hates women",
   "Limp dick",
-  "Pooface",
+  "Commits blackface",
   "Gay --->",
   "Yung Slut",
   "Shaggee",

@@ -1,4 +1,5 @@
-import { ChampdUp, MessageType } from "@components/champdup";
+import { ChampdUp } from "@components/champdup";
+import { MessageType } from "@lib/champdup";
 import { DevConsole } from "@components/dev";
 import { useGameContext } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";

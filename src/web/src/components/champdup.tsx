@@ -3,23 +3,14 @@ import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
 import { Card, Group, Image, Text, Title } from "@mantine/core";
 import { isMobile } from "@utils/ismobile";
-import { randomIntFromInterval } from "@utils/rand";
-import { useEffect, useState } from "react";
+import { MessageType } from "@lib/champdup";
+import { useEffect } from "react";
 import "@/css/champdup.css";
 import { ChatDrawer } from "./chat";
+import { Poll } from "./poll";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
-
-export enum MessageType {
-  HOST_CONNECT = "HOST_CONNECT",
-  HOST_DISCONNECT = "HOST_DISCONNECT",
-  CONNECT = "CONNECT",
-  DISCONNECT = "DISCONNECT",
-  START = "START",
-  STOP = "STOP",
-  CHAT = "CHAT",
-}
 
 const PlayerCard = ({ p }: { p: Player }) => {
   const imgSrc = p.avatar_data_url
@@ -92,6 +83,7 @@ export const ChampdUp = () => {
     <div id="champdup-root">
       <Lobby />
       <ChatDrawer />
+      <Poll />
     </div>
   )
 
