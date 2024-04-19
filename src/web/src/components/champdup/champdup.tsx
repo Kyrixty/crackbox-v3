@@ -10,7 +10,7 @@ import { ChatDrawer } from "../chat";
 import { Poll } from "../poll";
 import { useMessenger } from "@lib/context/ws";
 import { useChampdUpContext } from "@lib/context/champdup";
-import { HostComponent } from "@components/conditional";
+import { HostComponent, StatusComponent } from "@components/conditional";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -89,6 +89,14 @@ const Lobby = () => {
   );
 };
 
+const RunningComponent = () => {
+  return (
+    <div id="running-root" className="centered">
+      <Text>This is the Running Component</Text>
+    </div>
+  );
+};
+
 export const ChampdUp = () => {
   const { lastJsonMessage } = useMessenger<MessageType>();
   const { setCurrentEvent, setCurrentEventData } = useChampdUpContext();
@@ -103,7 +111,15 @@ export const ChampdUp = () => {
 
   return (
     <div id="champdup-root">
-      <Lobby />
+      <StatusComponent status_name={GameStatus.WAITING}>
+        <Lobby />
+      </StatusComponent>
+      <StatusComponent status_name={GameStatus.RUNNING}>
+        <RunningComponent />
+      </StatusComponent>
+      <StatusComponent status_name={GameStatus.STOPPED}>
+        <Text>This is the Stopped Component</Text>
+      </StatusComponent>
       <ChatDrawer />
       <Poll />
     </div>

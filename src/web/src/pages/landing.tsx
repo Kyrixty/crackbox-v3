@@ -328,7 +328,7 @@ export const LandingPage = () => {
 
     if (!canReconnect) return <></>;
     return (
-      <Text size="xs" id="reconnect-prompt" onClick={() => redirect("/game")}>
+      <Text size="sm" id="reconnect-prompt" onClick={() => redirect("/game")}>
         Reconnect to your previous game ({game.gameId})?
       </Text>
     );

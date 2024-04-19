@@ -126,6 +126,7 @@ export const ChatDrawer = () => {
         )}
       </div>
       <Drawer
+        id="chat-drawer"
         position="right"
         opened={opened}
         onClose={switchDrawer}
