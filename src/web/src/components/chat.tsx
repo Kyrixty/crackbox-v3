@@ -56,6 +56,18 @@ export const ChatDrawer = () => {
     );
   };
 
+  const createPMText = (sender: string, receiver: string, msg: string) => {
+    const to = `To ${receiver}`;
+    const from = `From ${sender}`;
+    const prefix = sender === username ? to : from;
+
+    return (
+      <Text color="red">
+        {`[${prefix}]`}: <span style={{ color: "white" }}>{msg}</span>
+      </Text>
+    );
+  };
+
   useEffect(() => {
     if (lastJsonMessage === null) return;
     if (lastJsonMessage.type === MessageType.CHAT) {
@@ -65,6 +77,12 @@ export const ChatDrawer = () => {
         setShouldNotify(!opened && p.username !== username);
       }
       scrollToBottom();
+    }
+    if (lastJsonMessage.type === MessageType.PM) {
+      const sender = lastJsonMessage.value.from;
+      const receiver = lastJsonMessage.value.to;
+      setMsgs([...msgs, createPMText(sender, receiver, lastJsonMessage.value.msg)]);
+      setShouldNotify(!opened && sender !== username);
     }
     if (lastJsonMessage.type === MessageType.CONNECT) {
       setMsgs([
@@ -93,14 +111,13 @@ export const ChatDrawer = () => {
     );
   };
 
-  const _sendMessage = useCallback(
-    () =>
-      sendJsonMessage({
-        type: MessageType.CHAT,
-        value: msg,
-      }),
-    [msg]
-  );
+  const _sendMessage = useCallback(() => {
+    let type = MessageType.CHAT;
+    if (msg.startsWith("/pm ")) {
+      type = MessageType.PM;
+    }
+    sendJsonMessage({ type, value: msg });
+  }, [msg]);
 
   const handleSendMessage = () => {
     _sendMessage();

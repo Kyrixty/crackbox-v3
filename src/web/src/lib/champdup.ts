@@ -6,6 +6,7 @@ export enum MessageType {
   CONNECT = "CONNECT",
   DISCONNECT = "DISCONNECT",
   CHAT = "CHAT",
+  PM = "PM",
   POLL = "POLL",
   POLL_VOTE = "POLL_VOTE",
 }

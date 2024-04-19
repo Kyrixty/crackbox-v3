@@ -27,6 +27,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     CHAT = "CHAT"
     POLL = "POLL"
     POLL_VOTE = "POLL_VOTE"
+    PM = "PM"
 
 class Poll(BaseModel):
     ends: str
@@ -153,6 +154,28 @@ class ChampdUp(Game):
             pm.add_broadcast(MessageType.POLL_VOTE, self.poll, self.get_player(author).data)
         return pm
     
+    async def handle_private_message(self, sender: str | int, command: str):
+        if type(command) != str or not command.startswith("/pm "):
+            return False
+        match = ""
+        text = command.removeprefix("/pm ")
+        # Find best match, if any
+        for i in range(min(18, len(text))): # max length of username = 18 
+            partition = text[:i]
+            if partition in self.players.keys():
+                match = partition
+        if match and sender != match:
+            msg = text[len(match):].strip()
+            if not msg:
+                return
+            author = sender
+            if author != 0:
+                author = self.get_player(author).data
+            await self.send(self.ws_map[sender], MessageSchema(type=MessageType.PM, value={"msg": msg, "from": "Host" if sender == 0 else sender, "to": match}, author=author))
+            await self.send(self.ws_map[match], MessageSchema(type=MessageType.PM, value={"msg": msg, "from": "Host" if sender == 0 else sender, "to": match}, author=author))
+            return True
+        return False
+    
     async def process_host_message(self, ws: WebSocket, msg: MessageSchema, username: int) -> ProcessedMessage:
         pm = ProcessedMessage()
         if msg.type == MessageType.STATUS:
@@ -162,6 +185,9 @@ class ChampdUp(Game):
             for name, _ws in self.ws_map.items():
                 self.debug(f"{name}, {_ws}")
                 await self.send(_ws, MessageSchema(type=MessageType.STATE, value=self.get_game_state(name), author=0))
+            return pm
+        if msg.type == MessageType.PM:
+            await self.handle_private_message(username, msg.value)
             return pm
         if msg.type == MessageType.CHAT:
             if self.validate_chat_msg(msg):
@@ -175,6 +201,9 @@ class ChampdUp(Game):
     
     async def process_plyr_message(self, ws: WebSocket, msg: MessageSchema, username: str) -> ProcessedMessage:
         pm = ProcessedMessage()
+        if msg.type == MessageType.PM:
+            await self.handle_private_message(username, msg.value)
+            return pm
         if msg.type == MessageType.CHAT:
             if self.validate_chat_msg(msg):
                 if self.validate_poll_msg(msg):

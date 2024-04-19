@@ -200,6 +200,8 @@ def create_game(name: str, config: GameCreatePayload):
 @game_router.put("/join/{id}/{username}")
 def join_game(id: str, username: str):
     g = get_game(id)
+    if len(username) == 0 or len(username) > 18:
+        raise HTTPException(403, "Username must be at least 1 character and at most 18 characters.")
     p = create_player(username, 0, gen_rand_hex_color())
     r = g.join(p)
     if not r.success:
