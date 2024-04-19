@@ -173,7 +173,10 @@ class Game(Generic[T]):
         if not self.can_join():
             r.Fail("Game is full!")
             return r
-        if p.username in self.players:
+        p_lower = list(self.players.keys())
+        for i, v in enumerate(p_lower):
+            p_lower[i] = v.lower()
+        if p.username.lower() in p_lower:
             r.Fail("Username taken")
             return r
         self.players[p.username] = p

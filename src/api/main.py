@@ -202,6 +202,7 @@ def join_game(id: str, username: str):
     g = get_game(id)
     if len(username) == 0 or len(username) > MAX_USERNAME_LENGTH:
         raise HTTPException(403, "Username must be at least 1 character and at most 24 characters.")
+    username = username.strip()
     p = create_player(username, 0, gen_rand_hex_color())
     r = g.join(p)
     if not r.success:

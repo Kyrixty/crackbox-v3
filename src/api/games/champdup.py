@@ -10,6 +10,7 @@ from terminal import Terminal
 from typing import Literal, Any
 from pydantic import BaseModel
 from globals import MAX_USERNAME_LENGTH
+from fuzzywuzzy import fuzz
 
 DEFAULT_PUBLIC_ATTRS = {
     "max_players": 10,
@@ -17,6 +18,7 @@ DEFAULT_PUBLIC_ATTRS = {
     "polls_enabled": True,
     "poll_duration": 10,
     "host_only_polls": False,
+    "enable_private_messages": True,
 }
 
 class ChampdUpConfig(GenericGameConfig):
@@ -156,17 +158,31 @@ class ChampdUp(Game):
         return pm
     
     async def handle_private_message(self, sender: str | int, command: str):
+        if not self.config.public["enable_private_messages"]:
+            return False
         if type(command) != str or not command.startswith("/pm "):
             return False
         match = ""
+        matched_partition = ""
         text = command.removeprefix("/pm ")
         # Find best match, if any
-        for i in range(min(MAX_USERNAME_LENGTH, len(text))):
-            partition = text[:i]
-            if partition in self.players.keys():
-                match = partition
+        player_names = list(self.players.keys())
+        partition = ""
+        words = text.split(" ")
+        for word in words:
+            partition = " ".join([partition, word]).strip()
+            self.debug(partition)
+            for v in player_names:
+                if v.lower().startswith(partition.lower()):
+                    self.debug(f"V: {v}")
+                    match = v
+                    matched_partition = partition
+            if len(partition) > 24:
+                break
+        #match = list(self.players.keys())[player_lower.index(partition.lower())]
         if match and sender != match:
-            msg = text[len(match):].strip()
+            msg = text[len(matched_partition):].strip()
+            self.debug(f"HERE NOW, {match}, {matched_partition}, {msg}")
             if not msg:
                 return
             author = sender
