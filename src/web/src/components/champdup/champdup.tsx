@@ -1,13 +1,16 @@
-import { useGameContext } from "@lib/context/game";
+import { GameStatus, useGameContext } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
-import { Card, Group, Image, Text, Title } from "@mantine/core";
+import { Button, Card, Group, Image, Stack, Text, Title } from "@mantine/core";
 import { isMobile } from "@utils/ismobile";
 import { MessageType } from "@lib/champdup";
 import { useEffect } from "react";
 import "@/css/champdup.css";
-import { ChatDrawer } from "./chat";
-import { Poll } from "./poll";
+import { ChatDrawer } from "../chat";
+import { Poll } from "../poll";
+import { useMessenger } from "@lib/context/ws";
+import { useChampdUpContext } from "@lib/context/champdup";
+import { HostComponent } from "@components/conditional";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -37,8 +40,10 @@ const PlayerCard = ({ p }: { p: Player }) => {
             {p.username}
           </Title>
         </Group>
-        <Text style={{textShadow: "1px 1px 1px black"}}>
-          <b><i>{p.bio}</i></b>
+        <Text style={{ textShadow: "1px 1px 1px black" }}>
+          <b>
+            <i>{p.bio}</i>
+          </b>
         </Text>
       </Card.Section>
     </Card>
@@ -47,6 +52,7 @@ const PlayerCard = ({ p }: { p: Player }) => {
 
 const Lobby = () => {
   const { players } = useGameContext();
+  const { sendJsonMessage } = useMessenger<MessageType>();
 
   if (players.length === 0) {
     return (
@@ -60,24 +66,40 @@ const Lobby = () => {
 
   return (
     <div id="lobby-root" className="centered">
-      <Group justify="center">
-        {players.map((p) => (
-          <PlayerCard p={p} />
-        ))}
-      </Group>
+      <Stack gap="md" align="center">
+        <Group justify="center">
+          {players.map((p) => (
+            <PlayerCard p={p} />
+          ))}
+        </Group>
+        <HostComponent>
+          <Button
+            onClick={() =>
+              sendJsonMessage({
+                type: MessageType.STATUS,
+                value: GameStatus.RUNNING,
+              })
+            }
+          >
+            Start
+          </Button>
+        </HostComponent>
+      </Stack>
     </div>
   );
 };
 
 export const ChampdUp = () => {
-  const { username, isHost, token, ticket } = useUserContext();
-  const { gameId } = useGameContext();
+  const { lastJsonMessage } = useMessenger<MessageType>();
+  const { setCurrentEvent, setCurrentEventData } = useChampdUpContext();
 
   useEffect(() => {
-    console.log("ON LOAD");
-    console.log({ username, isHost, token, ticket, gameId });
-  }, []);
-
+    if (lastJsonMessage === null) return;
+    if (lastJsonMessage.type == MessageType.STATE) {
+      setCurrentEvent(lastJsonMessage.value.event);
+      setCurrentEventData(lastJsonMessage.value.event_data);
+    }
+  }, [lastJsonMessage]);
 
   return (
     <div id="champdup-root">
@@ -85,6 +107,5 @@ export const ChampdUp = () => {
       <ChatDrawer />
       <Poll />
     </div>
-  )
-
-}
+  );
+};

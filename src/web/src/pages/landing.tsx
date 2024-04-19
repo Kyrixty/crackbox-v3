@@ -128,7 +128,7 @@ const ConfigViewer = ({
     };
 
     const getFieldTitle = () => toTitleCase(field.name.replaceAll("_", " "));
-    
+
     if (field.type === ConfigFieldType.BOOL) {
       return (
         <Checkbox
@@ -290,7 +290,7 @@ export const LandingPage = () => {
   };
 
   useEffect(() => {
-    game.reset();
+    game.landingReset();
     stylePage();
     const api = getAPI();
     const doFetch = async () => {
@@ -301,16 +301,57 @@ export const LandingPage = () => {
     doFetch();
   }, []);
 
+  const ReconnectPrompt = () => {
+    const [canReconnect, setCanReconnect] = useState(false);
+    const { gameId } = useGameContext();
+    const { ticket, setIsHost } = useUserContext();
+    const api = getAPI();
+
+    const checkReconnectEligbility = async () => {
+      return await api
+        .get(`/game/can-reconnect/${gameId}/${ticket}`)
+        .then((res) => {
+          if (res.status === 200) {
+            setIsHost(res.data.is_host);
+          }
+          return res.status === 200;
+        });
+    };
+
+    useEffect(() => {
+      const doFetch = async () => {
+        const result = await checkReconnectEligbility();
+        setCanReconnect(result);
+      };
+      doFetch();
+    }, []);
+
+    if (!canReconnect) return <></>;
+    return (
+      <Text size="xs" id="reconnect-prompt" onClick={() => redirect("/game")}>
+        Reconnect to your previous game ({game.gameId})?
+      </Text>
+    );
+  };
+
   return (
     <div id="landing-root">
       <CrackboxLogoGrid crackboxLogoArray={crackboxLogoArray} />
       <Box id="landing-main-container">
         <Group>
-          {mode === "join" ? (
-            <JoinForm switch={() => setMode("create")} />
-          ) : (
-            <CreateForm switch={() => setMode("join")} gameModes={gameModes} />
-          )}
+          <Stack>
+            <>
+              {mode === "join" ? (
+                <JoinForm switch={() => setMode("create")} />
+              ) : (
+                <CreateForm
+                  switch={() => setMode("join")}
+                  gameModes={gameModes}
+                />
+              )}
+              <ReconnectPrompt />
+            </>
+          </Stack>
           {im && (
             <Image
               id="logo-name"

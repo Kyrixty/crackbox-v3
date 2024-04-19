@@ -1,13 +1,13 @@
 import datetime
 
-from game import Game, GenericGameConfig, PublicConfig, MessageSchema, DefaultMessageTypes, ProcessedMessage
+from game import Game, GenericGameConfig, PublicConfig, MessageSchema, ProcessedMessage, GameStatus
 from result import Result
 from broadcaster import Broadcast
 from fastapi import WebSocket
 from enum import Enum
 from metaenum import MetaEnum
 from terminal import Terminal
-from typing import Literal
+from typing import Literal, Any
 from pydantic import BaseModel
 
 DEFAULT_PUBLIC_ATTRS = {
@@ -22,10 +22,8 @@ class ChampdUpConfig(GenericGameConfig):
     public: PublicConfig = DEFAULT_PUBLIC_ATTRS
 
 class MessageType(str, Enum, metaclass=MetaEnum):
-    CONNECT = "CONNECT"
-    DISCONNECT = "DISCONNECT"
-    START = "START"
-    STOP = "STOP"
+    STATE = "STATE"
+    STATUS = "STATUS"
     CHAT = "CHAT"
     POLL = "POLL"
     POLL_VOTE = "POLL_VOTE"
@@ -39,6 +37,8 @@ class Poll(BaseModel):
     def is_active(self) -> bool:
         return datetime.datetime.fromisoformat(self.ends) > datetime.datetime.now();
 
+RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B"]
+
 class ChampdUp(Game):
     poll: None | Poll
 
@@ -46,6 +46,21 @@ class ChampdUp(Game):
         super().__init__(b, t)
         self.config = ChampdUpConfig()
         self.poll = None
+        self.event_idx = 0
+        self.events = RUNNING_EVENTS[:len(RUNNING_EVENTS) - self.config.public["bonus_round_enabled"]]
+    
+    def get_current_event(self) -> str:
+        return RUNNING_EVENTS[self.event_idx]
+    
+    def get_game_state(self, username: str | int) -> dict[str, Any]:
+        return {
+            "host_connected": self.host_connected,
+            "status": self.status,
+            "players": self.get_player_list(),
+            "event": self.get_current_event(),
+            "event_data": {},
+            "via": username,
+        }
     
     def get_max_players(self) -> int:
         return self.config.public["max_players"]
@@ -73,8 +88,16 @@ class ChampdUp(Game):
                     continue
                 if v < 5:
                     errors.append((k, "Poll duration must be a whole number > 5"))
+                    continue
+            if k in ("bonus_round_enabled", "polls_enabled", "host_only_polls"):
+                try:
+                    v = bool(v)
+                except ValueError:
+                    errors.append((k, "Value must be true/false"))
+                    continue
             self.config.public[k] = v
         self.max_players = self.config.public["max_players"]
+        self.events = RUNNING_EVENTS[:len(RUNNING_EVENTS) - self.config.public["bonus_round_enabled"]]
         return errors
     
     def validate_chat_msg(self, msg: MessageSchema) -> bool:
@@ -132,6 +155,14 @@ class ChampdUp(Game):
     
     async def process_host_message(self, ws: WebSocket, msg: MessageSchema, username: int) -> ProcessedMessage:
         pm = ProcessedMessage()
+        if msg.type == MessageType.STATUS:
+            if not msg.value in GameStatus or len(self.players) < 3:
+                return pm
+            self.status = msg.value
+            for name, _ws in self.ws_map.items():
+                self.debug(f"{name}, {_ws}")
+                await self.send(_ws, MessageSchema(type=MessageType.STATE, value=self.get_game_state(name), author=0))
+            return pm
         if msg.type == MessageType.CHAT:
             if self.validate_chat_msg(msg):
                 if self.validate_poll_msg(msg):

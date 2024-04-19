@@ -9,7 +9,7 @@ import os
 
 from typing import Dict, Any, Type
 from result import Result
-from game import Game
+from game import Game, GameStatus
 from player import create_player, DESCRIPTORS
 from utils import gen_rand_hex_color, gen_rand_str
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
@@ -262,6 +262,16 @@ async def check_websocket(ws: WebSocket, gameId: str, route_is_host: bool, ticke
         await ws.close(reason=GameError.GAME_NOT_OPEN)
         return False
     return True
+
+@game_router.get("/can-reconnect/{gameId}/{ticket}")
+def can_play(gameId: str, ticket: str):
+    g = get_game(gameId);
+    if g.status != GameStatus.RUNNING:
+        raise HTTPException(403, "Game is not running!")
+    r = resolve_ws_ticket(ticket, gameId)
+    if not r.success:
+        raise HTTPException(404, r.reason)
+    return {"is_host": r.data == 0}
 
 
 @game_router.websocket("/host/{gameId}/{ticket}")

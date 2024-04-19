@@ -1,7 +1,7 @@
-import { ChampdUp } from "@components/champdup";
+import { ChampdUp } from "@components/champdup/champdup";
 import { MessageType } from "@lib/champdup";
 import { DevConsole } from "@components/dev";
-import { useGameContext } from "@lib/context/game";
+import { useGameContext, DefaultMessageType } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { useMessenger, JsonMessage, RJsonMessage } from "@lib/context/ws";
 import { useEffect, useState } from "react";
@@ -9,8 +9,8 @@ import { ReadyState } from "react-use-websocket";
 import { useWebSocket } from "react-use-websocket/dist/lib/use-websocket";
 
 export const GamePage = () => {
-  const g = useMessenger<MessageType>();
-  const { gameId, setPlayers, setLastPlayer, reset } = useGameContext();
+  const g = useMessenger<DefaultMessageType>();
+  const { gameId, setPlayers, setLastPlayer, setStatus, setHostConnected } = useGameContext();
   const { isHost, ticket } = useUserContext();
 
   // : RESOLVERS
@@ -38,7 +38,7 @@ export const GamePage = () => {
   >([]);
 
   const { sendJsonMessage, lastJsonMessage, readyState } =
-    useWebSocket<RJsonMessage<MessageType> | null>(socketUrl);
+    useWebSocket<RJsonMessage<DefaultMessageType> | null>(socketUrl);
 
   useEffect(() => {
     g.setSendJsonMessage(sendJsonMessage);
@@ -54,12 +54,18 @@ export const GamePage = () => {
       // setMessageHistory((prev) => prev.concat(lastJsonMessage)); // add later?
       g.setLastJsonMessage(lastJsonMessage);
 
-      if (lastJsonMessage.type === MessageType.CONNECT) {
+      if (lastJsonMessage.type == DefaultMessageType.STATE) {
+        setHostConnected(lastJsonMessage.value.host_connected);
+        setStatus(lastJsonMessage.value.status);
+        setPlayers(lastJsonMessage.value.players);
+      }
+
+      if (lastJsonMessage.type === DefaultMessageType.CONNECT) {
         setPlayers(lastJsonMessage.value.players);
         setLastPlayer(lastJsonMessage.value.target);
       }
 
-      if (lastJsonMessage.type === MessageType.DISCONNECT) {
+      if (lastJsonMessage.type === DefaultMessageType.DISCONNECT) {
         setPlayers(lastJsonMessage.value.players);
       }
     }

@@ -7,7 +7,6 @@ from terminal import Terminal
 from player import Player, create_player, ConnectionStatus, get_author_as_host
 from result import Result
 from utils import gen_rand_hex_color, gen_rand_str
-from event import Event
 from pydantic import BaseModel
 from enum import Enum
 from metaenum import MetaEnum
@@ -73,10 +72,8 @@ class DefaultMessageTypes(str, Enum, metaclass=MetaEnum):
     HOST_DISCONNECT = "HOST_DISCONNECT"
     CONNECT = "CONNECT"
     DISCONNECT = "DISCONNECT"
-    PLAYERS = "PLAYERS"
-    START = "START"
-    STOP = "STOP"
-    CHAT = "CHAT"
+    STATE = "STATE",
+    STATUS = "STATUS",
 
 T = TypeVar("T")
 
@@ -121,7 +118,10 @@ class ProcessedMessage(BaseModel):
 
 class Game(Generic[T]):
     '''Treated as abstract, custom games should inherit
-    from this class.'''
+    from this class.
+    
+    All derivative classes must override `get_game_state()`,
+    `process_host_message()`, and `process_plyr_message()`.'''
     def __init__(self, b: Broadcast, t: Terminal) -> None:
         self.t = t
         self.log = self.t.log
@@ -131,13 +131,29 @@ class Game(Generic[T]):
         self.error = self.t.error
         self._gen_id()
         self.players: Dict[str, Player] = {}
-        self.events: List[Event] = []
         self.config: GenericGameConfig = GenericGameConfig()
         self.max_players = -1
         self.status = GameStatus.WAITING
         self.host_connected = False
         self.broadcast = b
-        self.room_conns: list[WebSocket] = []
+        self.ws_map: dict[str | int, WebSocket] = {}
+    
+    def get_game_state(self, username: str | int) -> dict[str, Any]:
+        """OVERRIDE! Retrieves the current game state which is sent to
+        the player/host on reconnection. Use `username` to fetch
+        game state based on player name or host. Also note that there are
+        3 required fields in the return value: `status` (`GameStatus`),
+        `players` (`List[Player]`), and `host_connected` (`bool`). 
+        You can add any number of extra fields, but these will
+        need to be manually set on the frontend (game.tsx does not
+        concern itself with extra fields, only the 3 required ones). 
+        View the code of this function to see a correct default implementation."""
+        # return {
+        #     "host_connected": self.host_connected,
+        #     "players": self.get_player_list(),
+        #     "status": self.status,
+        # }
+        raise NotImplementedError("get_game_state :: You must override this method!")
     
     def get_max_players(self) -> int:
         '''Can be overridden if max_players needs to
@@ -190,7 +206,7 @@ class Game(Generic[T]):
         # TODO: add logging.
         msg = MessageSchema(type=type, value=value, author=author)
         self.debug(f"Broadcasting @{self.gameId} {msg}")
-        for ws in self.room_conns:
+        for ws in self.ws_map.values():
             await self.send(ws, msg)
         '''await self.broadcast.publish(
             channel=self.gameId,
@@ -203,12 +219,12 @@ class Game(Generic[T]):
                 msg.author = get_author_as_host()
             await ws.send_text(msg.json())
         except RuntimeError:
-            self.debug(f"{ws} is closed, consider removing from self.room_conns :: SKIPPING SEND")
+            self.debug(f"{ws} is closed, consider removing from self.ws_map :: SKIPPING SEND")
     
     async def handle_ws(self, ws: WebSocket, username: str | int, wsId: str) -> None:
         self.log(f"Handling websocket {wsId}..")
         isHost = username == HOST_USERNAME
-        self.room_conns.append(ws)
+        self.ws_map[username] = ws
 
         if isHost:
             await self.publish(DefaultMessageTypes.HOST_CONNECT, self.get_player_list(), 0)
@@ -216,8 +232,10 @@ class Game(Generic[T]):
             if not username in self.players:
                 self.debug(f"{username} could not be found in player map. Did they disconnect in the lobby?")
                 await ws.close(reason="PLAYER NOT FOUND (DISCONNECTED?)")
+                return
             self.players[username].connection_status = ConnectionStatus.CONNECTED
             await self.publish(DefaultMessageTypes.CONNECT, {"players": self.get_player_list(), "target": self.get_player(username).data}, 0)
+        await self.send(ws, MessageSchema(type=DefaultMessageTypes.STATE, value=self.get_game_state(username), author=0))
 
         async with anyio.create_task_group() as task_group:
 
@@ -229,7 +247,7 @@ class Game(Generic[T]):
             #self.debug("STARTING SENDER")
             #await self.ws_sender(ws, wsId, username)
         await self.disconnect(username)
-        self.room_conns.remove(ws)
+        del self.ws_map[username]
         self.log(f"Finished handling {wsId}")
 
     async def ws_receiver(self, ws: WebSocket, wsId: str, username: str) -> None:
@@ -267,10 +285,10 @@ class Game(Generic[T]):
             pm.action()
     
     async def process_host_message(self, ws: WebSocket, msg: MessageSchema, username: int) -> ProcessedMessage:
-        raise NotImplementedError("You must override this method in your custom game!")
+        raise NotImplementedError("process_host_message :: You must override this method in your custom game!")
     
     async def process_plyr_message(self, ws: WebSocket, msg: MessageSchema, username: str) -> ProcessedMessage:
-        raise NotImplementedError("You must override this method in your custom game!")
+        raise NotImplementedError("process_plyr_message :: You must override this method in your custom game!")
     
     def get_player(self, username: str) -> Result[Player]:
         r = Result()
