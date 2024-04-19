@@ -9,6 +9,7 @@ from metaenum import MetaEnum
 from terminal import Terminal
 from typing import Literal, Any
 from pydantic import BaseModel
+from globals import MAX_USERNAME_LENGTH
 
 DEFAULT_PUBLIC_ATTRS = {
     "max_players": 10,
@@ -160,7 +161,7 @@ class ChampdUp(Game):
         match = ""
         text = command.removeprefix("/pm ")
         # Find best match, if any
-        for i in range(min(18, len(text))): # max length of username = 18 
+        for i in range(min(MAX_USERNAME_LENGTH, len(text))):
             partition = text[:i]
             if partition in self.players.keys():
                 match = partition

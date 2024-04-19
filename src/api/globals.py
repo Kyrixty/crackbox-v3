@@ -11,6 +11,8 @@ ENV_PATH = os.path.join(ROOT_PATH, ".env")
 CONFIG_PATH = os.path.join(ROOT_PATH, "config.json")
 CONFIG_TEST_PATH = os.path.join(ROOT_PATH, "config.test.json") # Config for test.py
 
+MAX_USERNAME_LENGTH = 24
+
 if __name__ == "__main__":
     print(f"ROOT_PATH: {ROOT_PATH}")
     print(f"CONFIG_PATH: {CONFIG_PATH}")
