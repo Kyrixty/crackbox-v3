@@ -177,12 +177,12 @@ class ChampdUp(Game):
                     self.debug(f"V: {v}")
                     match = v
                     matched_partition = partition
-            if len(partition) > 24:
+            if len(partition) > MAX_USERNAME_LENGTH:
                 break
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
         if match and sender != match:
             msg = text[len(matched_partition):].strip()
-            self.debug(f"HERE NOW, {match}, {matched_partition}, {msg}")
+            #self.debug(f"HERE NOW, {match}, {matched_partition}, {msg}")
             if not msg:
                 return
             author = sender
