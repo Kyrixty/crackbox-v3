@@ -43,7 +43,7 @@ DESCRIPTORS = [
   "Yung Slut",
   "Shaggee",
   "Cooks steak too long",
-  "Frequents r/goons",
+  "Frequents r/gooncaves",
   "Discord Mod",
   "Pregnant",
   "Loves women",

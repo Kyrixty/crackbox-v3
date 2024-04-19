@@ -177,6 +177,7 @@ class ChampdUp(Game):
                     self.debug(f"V: {v}")
                     match = v
                     matched_partition = partition
+                    break
             if len(partition) > 24:
                 break
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
