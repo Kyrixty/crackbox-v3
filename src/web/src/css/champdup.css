@@ -1,10 +1,14 @@
 .player-card {
-    text-align: center;
+  text-align: center;
 }
 
 #home-icon {
-    position: fixed;
-    top: 5vh;
-    left: 5vw;
-    cursor: pointer;
+  position: fixed;
+  top: 5vh;
+  left: 5vw;
+  cursor: pointer;
+}
+
+#lobby-root {
+    width: 100vw;
 }

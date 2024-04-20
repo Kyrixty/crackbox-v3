@@ -1,6 +1,7 @@
 import { RJsonMessage, useMessenger } from "@lib/context/ws";
 import {
   ActionIcon,
+  Affix,
   Avatar,
   AvatarGroup,
   Checkbox,
@@ -21,7 +22,7 @@ import { Player } from "@lib/player";
 import { useUserContext } from "@lib/context/user";
 import { usePlayerPrefs } from "@lib/context/prefs";
 import { useGameContext } from "@lib/context/game";
-import { isMobile } from "@utils/ismobile";
+import { isMobile } from "@utils/device";
 
 const AVATAR_SIZE_DESKTOP = "lg";
 const AVATAR_SIZE_MOBILE = "md";
@@ -162,6 +163,8 @@ export const ChatDrawer = () => {
         opened={opened}
         onClose={switchDrawer}
         title="Chat"
+        zIndex={900}
+        withinPortal={false}
       >
         <div id="chat-form-container">
           <Stack h="100%" align="stretch" justify="space-between">
@@ -208,7 +211,11 @@ export const ChatDrawer = () => {
                               cursor: "pointer",
                               backgroundColor: p.color,
                             }}
-                            src={p.avatar_data_url}
+                            src={
+                              p.avatar_data_url
+                                ? p.avatar_data_url
+                                : "/imgs/crackbox-logo-2.png"
+                            }
                             onClick={() => {
                               setMsg(`/pm ${p.username} `);
                               inputRef.current!.focus();
@@ -217,8 +224,8 @@ export const ChatDrawer = () => {
                         </Tooltip>
                       );
                     })}
-                    {players.length > 5 && (
-                      <Avatar size={AVATAR_SIZE}>+{players.length - 5}</Avatar>
+                    {players.length > 10 && (
+                      <Avatar size={AVATAR_SIZE}>+{players.length - 10}</Avatar>
                     )}
                   </AvatarGroup>
                 )}

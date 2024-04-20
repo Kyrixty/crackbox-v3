@@ -1,8 +1,19 @@
 import { GameStatus, useGameContext } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
-import { Button, Card, Group, Image, Stack, Text, Title } from "@mantine/core";
-import { isMobile } from "@utils/ismobile";
+import {
+  Avatar,
+  Button,
+  Card,
+  Grid,
+  Group,
+  Image,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
+import { isDesktop, isMobile, isTablet } from "@utils/device";
 import { MessageType } from "@lib/champdup";
 import { useEffect } from "react";
 import "@/css/champdup.css";
@@ -14,26 +25,41 @@ import { HostComponent, StatusComponent } from "@components/conditional";
 import { DevConsole } from "@components/dev";
 import { ToHome } from "@components/home";
 import { Disconnected } from "@components/disconnected";
+import { CrackboxLogoGrid } from "@components/crackbox";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
 
 const PlayerCard = ({ p }: { p: Player }) => {
+  const { players } = useGameContext();
   const imgSrc = p.avatar_data_url
     ? p.avatar_data_url
     : "/imgs/crackbox-logo-2.png";
-  const im = !isMobile();
-  const dm = im ? AVATAR_SMALL : AVATAR_LARGE;
+  const tablet = isTablet();
+  const desktop = isDesktop();
+  const dm = players.length > 6 || tablet ? AVATAR_SMALL : AVATAR_LARGE;
 
   return (
-    <Card className="player-card" bg={p.color} key={p.username} w={dm}>
+    <Card
+      className="player-card"
+      bg={p.color}
+      key={p.username}
+      w={dm}
+      shadow="lg"
+      style={{ boxShadow: "1px 1px 12px 4px black" }}
+    >
       <Card.Section>
-        <Image src={imgSrc} width={dm} height={dm} style={{backgroundSize: "cover", backgroundRepeat: "round"}} />
+        <Image
+          src={imgSrc}
+          width={dm}
+          height={dm}
+          style={{ backgroundSize: "cover", backgroundRepeat: "round" }}
+        />
       </Card.Section>
       <Card.Section p={10}>
         <Group justify="center">
           <Title
-            order={im ? 5 : 3}
+            order={tablet ? 5 : 3}
             style={{
               color: "white",
               textShadow: "2px 2px 1px black",
@@ -43,7 +69,10 @@ const PlayerCard = ({ p }: { p: Player }) => {
             {p.username}
           </Title>
         </Group>
-        <Text style={{ textShadow: "1px 1px 1px black" }}>
+        <Text
+          size={dm === AVATAR_SMALL ? "sm" : "md"}
+          style={{ textShadow: "1px 1px 1px black" }}
+        >
           <b>
             <i>{p.bio}</i>
           </b>
@@ -56,38 +85,51 @@ const PlayerCard = ({ p }: { p: Player }) => {
 const Lobby = () => {
   const { players } = useGameContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
+  const im = isMobile();
 
   if (players.length === 0) {
     return (
       <div id="lobby-root" className="centered">
         <Group justify="center">
-          <Text>No players yet, share the game code with your friends!</Text>
+          <Text color="white" style={{ textShadow: "2px 2px 1px black" }}>
+            <b>No players yet, share the game code with your friends!</b>
+          </Text>
         </Group>
       </div>
     );
   }
 
   return (
-    <div id="lobby-root" className="centered">
-      <Stack gap="md" align="center">
-        <Group justify="center">
-          {players.map((p) => (
-            <PlayerCard p={p} />
-          ))}
-        </Group>
-        <HostComponent>
-          <Button
-            onClick={() =>
-              sendJsonMessage({
-                type: MessageType.STATUS,
-                value: GameStatus.RUNNING,
-              })
-            }
-          >
-            Start
-          </Button>
-        </HostComponent>
-      </Stack>
+    <div id="lobby-root">
+      <Group justify="center">
+        <Stack align="center">
+          <SimpleGrid cols={players.length > 6 ? 5 : 3}>
+            {players.map((p) => {
+              return (
+                <>
+                  {im ? (
+                    <Avatar style={{ boxShadow: "1px 1px 12px 4px black" }} size="xl" src={p.avatar_data_url} />
+                  ) : (
+                    <PlayerCard p={p} />
+                  )}
+                </>
+              );
+            })}
+          </SimpleGrid>
+          <HostComponent>
+            <Button
+              onClick={() =>
+                sendJsonMessage({
+                  type: MessageType.STATUS,
+                  value: GameStatus.RUNNING,
+                })
+              }
+            >
+              Start
+            </Button>
+          </HostComponent>
+        </Stack>
+      </Group>
     </div>
   );
 };
@@ -121,6 +163,7 @@ export const ChampdUp = () => {
   return (
     <div id="champdup-root">
       <StatusComponent status_name={GameStatus.WAITING}>
+        <CrackboxLogoGrid />
         <Lobby />
       </StatusComponent>
       <StatusComponent status_name={GameStatus.RUNNING}>

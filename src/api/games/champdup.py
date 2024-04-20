@@ -279,14 +279,32 @@ class ChampdUp(Game):
         player_names = list(self.players.keys())
         partition = ""
         words = text.split(" ")
+        matches: list[str] = []
+        matched_partitions: list[str] = []
         for word in words:
             partition = " ".join([partition, word]).strip()
-            for v in player_names:
-                if v.lower().startswith(partition.lower()):
+            for v in sorted(player_names, key=lambda x: len(x)):
+                if v.lower() == sender.lower():
+                    continue
+                if v.lower() == partition.lower():
                     match = v
                     matched_partition = partition
+                    matches = [v]
+                    matched_partitions = [partition]
+                    break
+                if v.lower().startswith(partition.lower()):
+                    matches.append(v)
+                    matched_partitions.append(partition)
             if match or len(partition) > MAX_USERNAME_LENGTH:
                 break
+        for m in matches:
+            p = matched_partitions[matches.index(m)]
+            if p.lower() == m.lower():
+                match = m
+                matched_partition = p
+                break
+            match = m
+            matched_partition = p
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
         if match and sender != match:
             msg = text[len(matched_partition):].strip()

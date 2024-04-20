@@ -1,7 +1,7 @@
 import { LandingStyle } from "@lib/landing";
 import "@/css/grid.css";
 import { randomIntFromInterval } from "@utils/rand";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface CLCProps {
   style: LandingStyle;
@@ -30,16 +30,23 @@ export const CrackboxLogoCard = (props: CLCProps) => {
   );
 };
 
-interface CrackboxLogoGridProps {
-  crackboxLogoArray: number[];
-}
-
-export const CrackboxLogoGrid = ({
-  crackboxLogoArray,
-}: CrackboxLogoGridProps) => {
+export const CrackboxLogoGrid = () => {
   const styles = [LandingStyle.Normal, LandingStyle.Peter];
   const [idx, _] = useState(randomIntFromInterval(0, styles.length - 1));
-  const [onFire, __] = useState(randomIntFromInterval(1, 5) < 3); 
+  const [onFire, __] = useState(randomIntFromInterval(1, 5) < 3);
+
+  const [crackboxLogoArray, setCrackboxLogoArray] = useState<number[]>([]);
+  const stylePage = () => {
+    let arr = [];
+    const rows = 8; // 8 (250)
+    const cols = 9; // 9
+    for (let i = 0; i < rows * cols; i++) {
+      arr.push(i);
+    }
+    setCrackboxLogoArray(arr);
+  };
+
+  useEffect(() => stylePage(), []);
 
   return (
     <div id="crackbox-logo-grid">

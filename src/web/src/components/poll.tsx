@@ -11,7 +11,7 @@ import {
   Transition,
 } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
-import { isMobile } from "@utils/ismobile";
+import { isMobile } from "@utils/device";
 
 export interface PollProps {
   poll_start_signal?: string;

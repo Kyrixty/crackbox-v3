@@ -34,7 +34,7 @@ import { useUserContext } from "@lib/context/user";
 import { useGameContext } from "@lib/context/game";
 import { redirect } from "@utils/redirect";
 import { CrackboxLogoGrid } from "@components/crackbox";
-import { isMobile } from "@utils/ismobile";
+import { isMobile } from "@utils/device";
 import { randomIntFromInterval } from "@utils/rand";
 import { toTitleCase } from "@utils/str";
 import { showNotification } from "@mantine/notifications";
@@ -80,7 +80,7 @@ const JoinForm = (props: FormProps) => {
   const setAvatar = (f: File | null) => {
     // _setAvatar(null);
     // resetRef.current?.();
-    // return () => 
+    // return () =>
     _setAvatar(f);
   };
 
@@ -133,7 +133,9 @@ const JoinForm = (props: FormProps) => {
               <Avatar
                 radius={0}
                 style={{ cursor: "pointer" }}
-                imageProps={{style: {backgroundSize: "cover", backgroundRepeat: "round"}}}
+                imageProps={{
+                  style: { backgroundSize: "cover", backgroundRepeat: "round" },
+                }}
                 size="lg"
                 src={avatarSrc}
                 {...props}
@@ -344,26 +346,14 @@ const CreateForm = (props: FormProps & CreateProps) => {
 export const LandingPage = () => {
   const game = useGameContext();
   const [mode, setMode] = useState<"create" | "join">("join");
-  const [crackboxLogoArray, setCrackboxLogoArray] = useState<number[]>([]);
   const [gameModes, setGameModes] = useState<string[]>([]);
   const [msg, _] = useState(
     minecraftTexts[randomIntFromInterval(0, minecraftTexts.length - 1)]
   );
   const im = isMobile();
 
-  const stylePage = () => {
-    let arr = [];
-    const rows = 8; // 8 (250)
-    const cols = 9; // 9
-    for (let i = 0; i < rows * cols; i++) {
-      arr.push(i);
-    }
-    setCrackboxLogoArray(arr);
-  };
-
   useEffect(() => {
     game.landingReset();
-    stylePage();
     const api = getAPI();
     const doFetch = async () => {
       await api.get("/game/names/").then((res) => {
@@ -408,7 +398,7 @@ export const LandingPage = () => {
 
   return (
     <div id="landing-root">
-      <CrackboxLogoGrid crackboxLogoArray={crackboxLogoArray} />
+      <CrackboxLogoGrid />
       <Box id="landing-main-container">
         <Group>
           <Stack>

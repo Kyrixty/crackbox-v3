@@ -20,7 +20,9 @@ export const GamePage = () => {
   const { isHost, ticket } = useUserContext();
   const { bgImage } = useGameStyleContext();
 
-  const style: React.CSSProperties = bgImage ? {backgroundImage: `url('${bgImage}')`} : {}
+  const style: React.CSSProperties = bgImage
+    ? { backgroundImage: `url('${bgImage}')` }
+    : {};
 
   // : RESOLVERS
 
@@ -80,5 +82,10 @@ export const GamePage = () => {
     }
   }, [lastJsonMessage]);
 
-  return <div id="game-page-root" style={style}>{RESOLVE_PROPER_GAME()}</div>;
+  return (
+    <div id="game-page-root">
+      <div id="game-page-bg" style={style}></div>
+      {RESOLVE_PROPER_GAME()}
+    </div>
+  );
 };
