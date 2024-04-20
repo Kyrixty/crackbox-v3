@@ -285,7 +285,8 @@ class ChampdUp(Game):
                 if v.lower().startswith(partition.lower()):
                     match = v
                     matched_partition = partition
-            if len(partition) > MAX_USERNAME_LENGTH:
+                    break
+            if match or len(partition) > MAX_USERNAME_LENGTH:
                 break
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
         if match and sender != match:
@@ -296,6 +297,8 @@ class ChampdUp(Game):
             author = sender
             if author != 0:
                 author = self.get_player(author).data
+            if not sender in self.ws_map or not match in self.ws_map:
+                return
             await self.send(self.ws_map[sender], MessageSchema(type=MessageType.PM, value={"msg": msg, "from": "Host" if sender == 0 else sender, "to": match}, author=author))
             await self.send(self.ws_map[match], MessageSchema(type=MessageType.PM, value={"msg": msg, "from": "Host" if sender == 0 else sender, "to": match}, author=author))
             return True
