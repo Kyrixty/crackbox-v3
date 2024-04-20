@@ -1,9 +1,14 @@
 import {
+  ActionIcon,
+  Avatar,
   Box,
   Button,
   Checkbox,
+  FileButton,
+  FileInput,
   Flex,
   Group,
+  HoverCard,
   Image,
   Loader,
   NativeSelect,
@@ -14,14 +19,14 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAPI } from "@lib/api";
 import {
   ConfigField,
   ConfigFieldType,
   FieldValueType,
 } from "@lib/gamemodeconfig";
-import { IconListDetails } from "@tabler/icons-react";
+import { IconListDetails, IconUpload, IconX } from "@tabler/icons-react";
 import "@/css/centered.css";
 import "@/css/landing.css";
 import { mapToObj } from "@utils/map";
@@ -32,6 +37,7 @@ import { CrackboxLogoGrid } from "@components/crackbox";
 import { isMobile } from "@utils/ismobile";
 import { randomIntFromInterval } from "@utils/rand";
 import { toTitleCase } from "@utils/str";
+import { showNotification } from "@mantine/notifications";
 
 interface FormProps {
   switch: () => void;
@@ -67,18 +73,82 @@ const JoinForm = (props: FormProps) => {
   const { gameId, setGameId } = useGameContext();
   const { username, setUsername, setToken, setTicket, setIsHost } =
     useUserContext();
+  const [avatar, _setAvatar] = useState<File | null>(null);
+  const [avatarSrc, setAvatarSrc] = useState<string>("");
+  const resetRef = useRef<() => void>(null);
+
+  const setAvatar = (f: File | null) => {
+    // _setAvatar(null);
+    // resetRef.current?.();
+    // return () => 
+    _setAvatar(f);
+  };
 
   const handleJoin = async () => {
     const api = getAPI();
-    await api.put(`/game/join/${gameId}/${username}`).then((res) => {
-      if (res.status === 200) {
-        setIsHost(false);
-        setToken(res.data.access_token);
-        setTicket(res.data.ticket);
-        redirect("/game");
-      }
-    });
+    await api
+      .put(`/game/join/${gameId}/${username}`, { avatar_data_url: avatarSrc })
+      .then((res) => {
+        if (res.status === 200) {
+          setIsHost(false);
+          setToken(res.data.access_token);
+          setTicket(res.data.ticket);
+          redirect("/game");
+        }
+      });
   };
+
+  useEffect(() => {
+    var reader = new FileReader();
+    if (avatar === null) return;
+    reader.readAsDataURL(avatar);
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAvatarSrc(reader.result);
+      }
+    };
+
+    reader.onerror = () => {
+      console.log(reader.error);
+      showNotification({
+        title: "Error",
+        icon: <IconX />,
+        message:
+          "Error reading file, please try again. Check console for details.",
+        color: "red",
+      });
+    };
+  }, [avatar]);
+
+  const FileUploadForm = () => (
+    <Stack justify="center" align="center">
+      <HoverCard position="top">
+        <FileButton
+          resetRef={resetRef}
+          onChange={setAvatar}
+          accept="image/png,image/jpeg"
+        >
+          {(props) => (
+            <HoverCard.Target>
+              <Avatar
+                radius={0}
+                style={{ cursor: "pointer" }}
+                imageProps={{style: {backgroundSize: "cover", backgroundRepeat: "round"}}}
+                size="lg"
+                src={avatarSrc}
+                {...props}
+              />
+            </HoverCard.Target>
+          )}
+        </FileButton>
+        <HoverCard.Dropdown>
+          <Text size="sm">
+            Images only persist for the duration of the game.
+          </Text>
+        </HoverCard.Dropdown>
+      </HoverCard>
+    </Stack>
+  );
 
   return (
     <div id="join-form-root">
@@ -90,8 +160,10 @@ const JoinForm = (props: FormProps) => {
         />
         <TextInput
           placeholder="Game ID"
-          onChange={(e) => setGameId(e.currentTarget.value)}
+          value={gameId}
+          onChange={(e) => setGameId(e.currentTarget.value.toUpperCase())}
         />
+        <FileUploadForm />
         <Button fullWidth color="green" onClick={handleJoin}>
           Join
         </Button>

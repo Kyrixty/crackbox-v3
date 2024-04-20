@@ -1,6 +1,8 @@
 import { RJsonMessage, useMessenger } from "@lib/context/ws";
 import {
   ActionIcon,
+  Avatar,
+  AvatarGroup,
   Checkbox,
   Drawer,
   Group,
@@ -8,6 +10,7 @@ import {
   Stack,
   Text,
   TextInput,
+  Tooltip,
 } from "@mantine/core";
 import { getHotkeyHandler, useDisclosure, useHotkeys } from "@mantine/hooks";
 import { IconBrandTelegram, IconMessageCircle } from "@tabler/icons-react";
@@ -16,7 +19,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageType } from "@lib/champdup";
 import { Player } from "@lib/player";
 import { useUserContext } from "@lib/context/user";
-import { usePollPrefs } from "@lib/context/poll";
+import { usePlayerPrefs } from "@lib/context/prefs";
+import { useGameContext } from "@lib/context/game";
+import { isMobile } from "@utils/ismobile";
+
+const AVATAR_SIZE_DESKTOP = "lg";
+const AVATAR_SIZE_MOBILE = "md";
 
 export const ChatDrawer = () => {
   const viewport = useRef<HTMLDivElement>(null);
@@ -27,13 +35,16 @@ export const ChatDrawer = () => {
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
   const { username } = useUserContext();
   const [shouldNotify, setShouldNotify] = useState(false);
-  const { showPolls, setShowPolls } = usePollPrefs();
+  const { showPolls, setShowPolls } = usePlayerPrefs();
+  const { players } = useGameContext();
+  const im = isMobile();
+
+  const AVATAR_SIZE = !im ? AVATAR_SIZE_MOBILE : AVATAR_SIZE_DESKTOP;
 
   const switchDrawer = () => {
     if (!opened) {
       setShouldNotify(false);
       open();
-      inputRef.current?.focus();
     } else {
       close();
     }
@@ -81,7 +92,10 @@ export const ChatDrawer = () => {
     if (lastJsonMessage.type === MessageType.PM) {
       const sender = lastJsonMessage.value.from;
       const receiver = lastJsonMessage.value.to;
-      setMsgs([...msgs, createPMText(sender, receiver, lastJsonMessage.value.msg)]);
+      setMsgs([
+        ...msgs,
+        createPMText(sender, receiver, lastJsonMessage.value.msg),
+      ]);
       setShouldNotify(!opened && sender !== username);
     }
     if (lastJsonMessage.type === MessageType.CONNECT) {
@@ -182,6 +196,32 @@ export const ChatDrawer = () => {
                     <IconBrandTelegram />
                   </ActionIcon>
                 </Group>
+                {players.length > 0 && (
+                  <AvatarGroup>
+                    {players.map((p) => {
+                      if (players.indexOf(p) > 4) return <></>;
+                      return (
+                        <Tooltip label={p.username} openDelay={250}>
+                          <Avatar
+                            size={AVATAR_SIZE}
+                            style={{
+                              cursor: "pointer",
+                              backgroundColor: p.color,
+                            }}
+                            src={p.avatar_data_url}
+                            onClick={() => {
+                              setMsg(`/pm ${p.username} `);
+                              inputRef.current!.focus();
+                            }}
+                          />
+                        </Tooltip>
+                      );
+                    })}
+                    {players.length > 5 && (
+                      <Avatar size={AVATAR_SIZE}>+{players.length - 5}</Avatar>
+                    )}
+                  </AvatarGroup>
+                )}
                 <Checkbox
                   label="Show polls"
                   checked={showPolls}

@@ -26,7 +26,7 @@ const PlayerCard = ({ p }: { p: Player }) => {
   return (
     <Card className="player-card" bg={p.color} key={p.username} w={dm}>
       <Card.Section>
-        <Image src={imgSrc} width={dm} height={dm} />
+        <Image src={imgSrc} width={dm} height={dm} style={{backgroundSize: "cover", backgroundRepeat: "round"}} />
       </Card.Section>
       <Card.Section p={10}>
         <Group justify="center">

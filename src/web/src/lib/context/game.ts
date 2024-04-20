@@ -33,6 +33,16 @@ export type GameContext = {
   landingReset: () => void;
 };
 
+const tryClearSessionStorage = (cb: () => any) => {
+  // Since players now contain Data URIs, we may run out of session storage.
+  // In this case, clear it and alert the user.
+  try {
+    cb();
+  } catch (e) {
+    alert("Your session storage is full. Clearing it now, please try rejoining/reconnecting if problems occur.");
+  }
+}
+
 export const useGameContext = create<GameContext>()(
   persist(
     (set, get) => ({
@@ -44,8 +54,8 @@ export const useGameContext = create<GameContext>()(
 
       setGameId: (id: string) => set(() => ({ gameId: id })),
       setStatus: (s: GameStatus) => set(() => ({ status: s })),
-      setPlayers: (p: Player[]) => set(() => ({ players: p })),
-      setLastPlayer: (p: Player) => set(() => ({ lastPlayer: p })),
+      setPlayers: (p: Player[]) => tryClearSessionStorage(() => set(() => ({ players: p }))),
+      setLastPlayer: (p: Player) => tryClearSessionStorage(() => set(() => ({ lastPlayer: p }))),
       setHostConnected: (v: boolean) => set(() => ({ hostConnected: v })),
       reset: () =>
         set(() => ({
@@ -66,3 +76,13 @@ export const useGameContext = create<GameContext>()(
     { name: "game-context", storage: createJSONStorage(() => sessionStorage) }
   )
 );
+
+export type GameStyleContext = {
+  bgImage: string;
+  setBgImage: (s: string) => void;
+};
+
+export const useGameStyleContext = create<GameStyleContext>()((set) => ({
+  bgImage: "",
+  setBgImage: (s: string) => set(() => ({ bgImage: s })),
+}));

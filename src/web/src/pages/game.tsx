@@ -1,17 +1,26 @@
 import { ChampdUp } from "@components/champdup/champdup";
 import { MessageType } from "@lib/champdup";
 import { DevConsole } from "@components/dev";
-import { useGameContext, DefaultMessageType } from "@lib/context/game";
+import {
+  useGameContext,
+  DefaultMessageType,
+  useGameStyleContext,
+} from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { useMessenger, JsonMessage, RJsonMessage } from "@lib/context/ws";
 import { useEffect, useState } from "react";
 import { ReadyState } from "react-use-websocket";
 import { useWebSocket } from "react-use-websocket/dist/lib/use-websocket";
+import "@/css/game.css";
 
 export const GamePage = () => {
   const g = useMessenger<DefaultMessageType>();
-  const { gameId, setPlayers, setLastPlayer, setStatus, setHostConnected } = useGameContext();
+  const { gameId, setPlayers, setLastPlayer, setStatus, setHostConnected } =
+    useGameContext();
   const { isHost, ticket } = useUserContext();
+  const { bgImage } = useGameStyleContext();
+
+  const style: React.CSSProperties = bgImage ? {backgroundImage: `url('${bgImage}')`} : {}
 
   // : RESOLVERS
 
@@ -47,7 +56,7 @@ export const GamePage = () => {
 
   useEffect(() => {
     g.setReadyState(readyState);
-  }, [readyState])
+  }, [readyState]);
 
   useEffect(() => {
     if (lastJsonMessage !== null) {
@@ -71,9 +80,5 @@ export const GamePage = () => {
     }
   }, [lastJsonMessage]);
 
-  return (
-    <div id="game-page-root">
-      {RESOLVE_PROPER_GAME()}
-    </div>
-  );
+  return <div id="game-page-root" style={style}>{RESOLVE_PROPER_GAME()}</div>;
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { PollData, usePollPrefs } from "@lib/context/poll";
+import { PollData, usePlayerPrefs } from "@lib/context/prefs";
 import { useMessenger } from "@lib/context/ws";
 import {
   Box,
@@ -24,7 +24,7 @@ export const DEFAULT_POLL_PROPS: PollProps = {
 };
 
 export const Poll = (props: PollProps) => {
-  const prefs = usePollPrefs();
+  const prefs = usePlayerPrefs();
   props = { ...DEFAULT_POLL_PROPS, ...props };
   const [pollData, setPollData] = useState<PollData | null>(null);
   const [pollEnds, setPollEnds] = useState<number>(0);

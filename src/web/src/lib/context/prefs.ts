@@ -8,13 +8,13 @@ export type PollData = {
   no: string[];
 }
 
-interface PollPrefs {
+interface PlayerPrefs {
   showPolls: boolean;
 
   setShowPolls: (v: boolean) => void;
 }
 
-export const usePollPrefs = create<PollPrefs>()((set) => ({
+export const usePlayerPrefs = create<PlayerPrefs>()((set) => ({
   showPolls: true,
 
   setShowPolls: (v: boolean) => set(() => ({showPolls: v}))
