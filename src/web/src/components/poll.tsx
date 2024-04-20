@@ -34,7 +34,7 @@ export const Poll = (props: PollProps) => {
     pollData !== null ? pollData.yes.length + pollData.no.length : 0;
   const yesPct = pollData !== null ? pollData.yes.length / total : 0;
   const noPct = pollData !== null ? pollData.no.length / total : 0;
-  const im = !isMobile();
+  const im = isMobile();
 
   const _clearPollData = () => {
     setPollData(null);

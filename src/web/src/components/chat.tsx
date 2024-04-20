@@ -40,7 +40,7 @@ export const ChatDrawer = () => {
   const { players } = useGameContext();
   const im = isMobile();
 
-  const AVATAR_SIZE = !im ? AVATAR_SIZE_MOBILE : AVATAR_SIZE_DESKTOP;
+  const AVATAR_SIZE = im ? AVATAR_SIZE_MOBILE : AVATAR_SIZE_DESKTOP;
 
   const switchDrawer = () => {
     if (!opened) {
@@ -202,7 +202,7 @@ export const ChatDrawer = () => {
                 {players.length > 0 && (
                   <AvatarGroup>
                     {players.map((p) => {
-                      if (players.indexOf(p) > 4) return <></>;
+                      if (players.indexOf(p) > 6) return <></>;
                       return (
                         <Tooltip label={p.username} openDelay={250}>
                           <Avatar
@@ -224,8 +224,8 @@ export const ChatDrawer = () => {
                         </Tooltip>
                       );
                     })}
-                    {players.length > 10 && (
-                      <Avatar size={AVATAR_SIZE}>+{players.length - 10}</Avatar>
+                    {players.length > 7 && (
+                      <Avatar size={AVATAR_SIZE}>+{players.length - 7}</Avatar>
                     )}
                   </AvatarGroup>
                 )}

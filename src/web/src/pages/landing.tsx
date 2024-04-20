@@ -38,6 +38,7 @@ import { isMobile } from "@utils/device";
 import { randomIntFromInterval } from "@utils/rand";
 import { toTitleCase } from "@utils/str";
 import { showNotification } from "@mantine/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface FormProps {
   switch: () => void;
@@ -350,7 +351,7 @@ export const LandingPage = () => {
   const [msg, _] = useState(
     minecraftTexts[randomIntFromInterval(0, minecraftTexts.length - 1)]
   );
-  const im = isMobile();
+  const im = useMediaQuery("(max-width: 65em)");
 
   useEffect(() => {
     game.landingReset();
@@ -414,7 +415,7 @@ export const LandingPage = () => {
               <ReconnectPrompt />
             </>
           </Stack>
-          {im && (
+          {!im && (
             <Image
               id="logo-name"
               w={250}

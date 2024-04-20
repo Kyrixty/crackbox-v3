@@ -142,9 +142,10 @@ class ChampdUp(Game):
         if event_before.name in ("V1", "V2"):
             ... # Loop V1/V2 until all vote rounds are complete
         self.event_idx += 1
-        event = self.get_current_event()
+        self.debug(str(self.event_idx))
         if self.event_idx >= len(self.events):
             return
+        event = self.get_current_event()
         self.debug(f"Processing {event.name}..")
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
             return await self.iter_game_events()
