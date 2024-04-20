@@ -12,6 +12,8 @@ import { useMessenger } from "@lib/context/ws";
 import { useChampdUpContext } from "@lib/context/champdup";
 import { HostComponent, StatusComponent } from "@components/conditional";
 import { DevConsole } from "@components/dev";
+import { ToHome } from "@components/home";
+import { Disconnected } from "@components/disconnected";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -140,6 +142,10 @@ export const ChampdUp = () => {
       />
       <ChatDrawer />
       <Poll />
+      <div id="home-icon">
+        <ToHome />
+      </div>
+      <Disconnected />
     </div>
   );
 };
