@@ -11,6 +11,7 @@ import { Poll } from "../poll";
 import { useMessenger } from "@lib/context/ws";
 import { useChampdUpContext } from "@lib/context/champdup";
 import { HostComponent, StatusComponent } from "@components/conditional";
+import { DevConsole } from "@components/dev";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -99,7 +100,13 @@ const RunningComponent = () => {
 
 export const ChampdUp = () => {
   const { lastJsonMessage } = useMessenger<MessageType>();
-  const { setCurrentEvent, setCurrentEventData } = useChampdUpContext();
+  const {
+    currentEvent,
+    currentEventData,
+    setCurrentEvent,
+    setCurrentEventData,
+  } = useChampdUpContext();
+  const { hostConnected, players, status } = useGameContext();
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
@@ -120,6 +127,17 @@ export const ChampdUp = () => {
       <StatusComponent status_name={GameStatus.STOPPED}>
         <Text>This is the Stopped Component</Text>
       </StatusComponent>
+      <DevConsole
+        get_game_state={() => {
+          return {
+            hostConnected,
+            status,
+            players,
+            currentEvent,
+            currentEventData,
+          };
+        }}
+      />
       <ChatDrawer />
       <Poll />
     </div>

@@ -7,11 +7,17 @@ import { useHotkeys } from "@mantine/hooks";
 import { useState } from "react";
 import ReactJson from "react-json-view";
 
-export const DevConsole = () => {
+interface DCProps {
+  get_game_state?: () => Object;
+}
+
+export const DevConsole = (props: DCProps) => {
   const { gameId, players, hostConnected, status } = useGameContext();
   const { lastJsonMessage, readyState } = useMessenger();
   const { token, ticket } = useUserContext();
   const [isVisible, setIsVisible] = useState(false);
+
+  const gameState = props.get_game_state ? props.get_game_state() : {hostConnected, players, status}
 
   useHotkeys([["`", () => setIsVisible(!isVisible)]]);
 
@@ -25,7 +31,7 @@ export const DevConsole = () => {
                 src={{
                   gameId,
                   readyState: READYSTATE_MAP[readyState],
-                  gameState: { hostConnected, players, status },
+                  gameState: gameState,
                   lastJsonMessage,
                   players,
                   token,

@@ -343,7 +343,7 @@ class Game(Generic[T]):
         if self.status == GameStatus.WAITING:
             self.debug(f"LEAVING {username}")
             self.leave(username)
-        player.connection_status = ConnectionStatus.DISCONNECTED
+        self.get_player(username).data.connection_status = ConnectionStatus.DISCONNECTED
         await self.publish(
             DefaultMessageTypes.DISCONNECT,
             {"players": self.get_player_list(), "target": player},

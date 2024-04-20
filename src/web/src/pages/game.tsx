@@ -73,7 +73,6 @@ export const GamePage = () => {
 
   return (
     <div id="game-page-root">
-      <DevConsole />
       {RESOLVE_PROPER_GAME()}
     </div>
   );

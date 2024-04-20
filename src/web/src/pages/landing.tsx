@@ -178,7 +178,7 @@ const ConfigViewer = ({
             </Text>
           </Group>
           {viewing && (
-            <ScrollArea h={100} offsetScrollbars p={10}>
+            <ScrollArea h={150} offsetScrollbars p={10}>
               <Stack>{currentConfig.map((field) => resolveField(field))}</Stack>
             </ScrollArea>
           )}

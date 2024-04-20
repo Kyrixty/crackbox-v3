@@ -11,7 +11,7 @@ export enum MessageType {
   POLL_VOTE = "POLL_VOTE",
 }
 
-export enum Event {
+export enum EventNames {
   FirstDraw = "D1",
   FirstCounter = "C1",
   FirstVote = "V1",
@@ -19,4 +19,11 @@ export enum Event {
   SecondCounter = "C2",
   SecondVote = "V2",
   BonusRound = "B",
+  Leaderboard = "L",
+}
+
+export type Event = {
+  name: EventNames;
+  timed: boolean;
+  ends: string | null;
 }
