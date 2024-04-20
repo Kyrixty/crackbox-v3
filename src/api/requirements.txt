@@ -12,3 +12,6 @@ websockets
 broadcaster==0.2.0
 fuzzywuzzy
 python-levenshtein
+pillow
+python-multipart
+python-datauri

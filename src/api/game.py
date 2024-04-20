@@ -208,7 +208,7 @@ class Game(Generic[T]):
         on the frontend."""
         # TODO: add logging.
         msg = MessageSchema(type=type, value=value, author=author)
-        self.debug(f"Broadcasting @{self.gameId} {msg}")
+        self.debug(f"Broadcasting @{self.gameId}")
         for ws in self.ws_map.values():
             await self.send(ws, msg)
         '''await self.broadcast.publish(
@@ -339,11 +339,11 @@ class Game(Generic[T]):
             self.log("The host has disconnected. Pausing game & waiting for them to reconnect.")
             await self.publish(DefaultMessageTypes.HOST_DISCONNECT, {"players": self.get_player_list()}, 0)
             return
+        self.get_player(username).data.connection_status = ConnectionStatus.DISCONNECTED
         player = self.get_player(username).data.model_copy()
         if self.status == GameStatus.WAITING:
             self.debug(f"LEAVING {username}")
             self.leave(username)
-        self.get_player(username).data.connection_status = ConnectionStatus.DISCONNECTED
         await self.publish(
             DefaultMessageTypes.DISCONNECT,
             {"players": self.get_player_list(), "target": player},

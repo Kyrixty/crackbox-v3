@@ -1,11 +1,15 @@
 # Crackbox 1 & 2 were never released to the public. They were test builds where I figured out how to
 # not make this shit. Up to you to decide whether or not this should've been kept local too.
+import urllib.request
 import random
+import base64
+import hashlib
 import uvicorn
 import string
 import json
 import time
 import os
+import io
 
 from typing import Dict, Any, Type
 from result import Result
@@ -14,6 +18,7 @@ from player import create_player, DESCRIPTORS
 from utils import gen_rand_hex_color, gen_rand_str
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
 from fastapi import FastAPI, Depends, Request, APIRouter, HTTPException, WebSocket
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config import Config
 from terminal import Terminal, TerminalOpts
@@ -25,6 +30,9 @@ from games.champdup import ChampdUp, ChampdUpConfig
 from games.test import MyCustomGame
 from pydantic import BaseModel
 from broadcaster import Broadcast
+from binascii import a2b_base64
+from PIL import Image
+from datauri import DataURI
 
 
 ## :: App setup
@@ -197,19 +205,45 @@ def create_game(name: str, config: GameCreatePayload):
         ticket=ticket,
     )
 
+def pillow_image_to_base64_string(img) -> str:
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+class GameJoinPayload(BaseModel):
+    avatar_data_url: str
+
 @game_router.put("/join/{id}/{username}")
-def join_game(id: str, username: str):
+def join_game(id: str, username: str, payload: GameJoinPayload):
     g = get_game(id)
     if len(username) == 0 or len(username) > MAX_USERNAME_LENGTH:
         raise HTTPException(403, "Username must be at least 1 character and at most 24 characters.")
     username = username.strip()
-    p = create_player(username, 0, gen_rand_hex_color())
+    if payload.avatar_data_url:
+        file_name = f"{id}-{username}.png"
+        path = f"{ROOT_PATH}/imgs/{file_name}"
+        response = urllib.request.urlopen(payload.avatar_data_url)
+        with open(path, "wb") as f:
+            f.write(response.file.read())
+        im = Image.open(path)
+        im.resize((300, 300), Image.LANCZOS)
+        im.save(path, "png", quality=80)
+        im = Image.open(path)
+        payload.avatar_data_url = f"http://localhost:8000/game/players/{id}/{username}/avatar"
+    p = create_player(username, 0, gen_rand_hex_color(), avatar_data_url=payload.avatar_data_url)
     r = g.join(p)
     if not r.success:
         raise HTTPException(409, r.reason)
     token = auth.create_access_token(username, True)
     ticket = create_ws_ticket(username, g.id)
     return {"access_token": token, "ticket": ticket}
+
+@game_router.get("/players/{id}/{username}/avatar", response_class=FileResponse)
+def get_player_avatar(id: str, username: str):
+    fp = f"{ROOT_PATH}/imgs/{id}-{username}.png"
+    if not os.path.isfile(fp):
+        raise HTTPException(404, "Could not find avatar!")
+    return FileResponse(fp, media_type="image/png")
 
 @game_router.get("/players/{id}")
 def get_players(id: str):

@@ -27,6 +27,11 @@ class AppSetup:
         t.log("Creating environment file..")
         with open(f"{ROOT_PATH}/.env", mode="w") as f:
             f.write(f"SECRET_KEY=\"{b64encode(os.urandom(SECRET_SIZE)).decode('utf-8')}\"")
+        imgs_path = f"{ROOT_PATH}/imgs/"
+        t.log(f"Checking {imgs_path} existence..")
+        if not os.path.isdir(imgs_path):
+            t.log("Creating imgs/ path...")
+            os.mkdir(imgs_path)
         t.log("Finished")
 
 

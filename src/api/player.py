@@ -56,8 +56,8 @@ DESCRIPTORS = [
 ];
 
 
-def create_player(username: str, points: int, color: str, is_host: bool = False) -> Player:
-    return Player(username=username, bio=random.choice(DESCRIPTORS), points=points, color=color, is_host=is_host)
+def create_player(username: str, points: int, color: str, avatar_data_url: str = "", is_host: bool = False) -> Player:
+    return Player(username=username, bio=random.choice(DESCRIPTORS), points=points, avatar_data_url=avatar_data_url, color=color, is_host=is_host)
 
 def get_author_as_host(conn_status: ConnectionStatus = ConnectionStatus.CONNECTED) -> Player:
     '''Returns a `Player` with `is_host` set to `True`. Note that the host is not a player,

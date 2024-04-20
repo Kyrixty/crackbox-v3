@@ -285,7 +285,8 @@ class ChampdUp(Game):
                 if v.lower().startswith(partition.lower()):
                     match = v
                     matched_partition = partition
-                    break
+                    continue
+                break
             if match or len(partition) > MAX_USERNAME_LENGTH:
                 break
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
