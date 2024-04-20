@@ -213,6 +213,8 @@ def pillow_image_to_base64_string(img) -> str:
 class GameJoinPayload(BaseModel):
     avatar_data_url: str
 
+IMAGE_COMPRESSION_QUALITY = 1
+
 @game_router.put("/join/{id}/{username}")
 def join_game(id: str, username: str, payload: GameJoinPayload):
     g = get_game(id)
@@ -225,9 +227,13 @@ def join_game(id: str, username: str, payload: GameJoinPayload):
         response = urllib.request.urlopen(payload.avatar_data_url)
         with open(path, "wb") as f:
             f.write(response.file.read())
-        im = Image.open(path)
-        im.resize((300, 300), Image.LANCZOS)
-        im.save(path, "png", quality=80)
+        try:
+            im = Image.open(path)
+        except Exception as e:
+            terminal.debug(str(e))
+            raise HTTPException(400, "Data URI is invalid, please ensure it is an encoded image")
+        im = im.resize((300, 300), Image.LANCZOS)
+        im.save(path, "png", quality=IMAGE_COMPRESSION_QUALITY)
         im = Image.open(path)
         payload.avatar_data_url = f"http://localhost:8000/game/players/{id}/{username}/avatar"
     p = create_player(username, 0, gen_rand_hex_color(), avatar_data_url=payload.avatar_data_url)
