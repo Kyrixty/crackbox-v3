@@ -46,7 +46,6 @@ class Timer:
     def __init__(self, name: str, t: Terminal, callback: Coroutine | Callable | None = None) -> None:
         self.name = name
         self.callback = callback
-        self.running = False
         self.finished = False
         self.t = t
         self.log = t.log
@@ -55,13 +54,14 @@ class Timer:
         duration = (ends - datetime.datetime.now()).total_seconds()
         self.log(f"Sleeping for {duration} seconds")
         with task_threads_lock:
-            self.running = True
             self.finished = False
         await anyio.sleep(duration)
         self.log(f"Finished sleeping")
         with task_threads_lock:
             if self.finished: # killed at some point before duration was reached
                 return
+            if not self.finished:
+                self.finished = True
         if self.callback:
             if inspect.iscoroutinefunction(self.callback):
                 self.log("Awaiting callback")
@@ -69,19 +69,15 @@ class Timer:
             else:
                 self.log("Calling callback")
                 self.callback()
-        with task_threads_lock:
-            self.finished = True
         self.log("Timer finished.")
 
     async def start(self, ends: datetime.datetime) -> None:
         with task_threads_lock:
-            self.running = True
             self.finished = False
         create_threaded_async_action(self.run, (ends,))()
 
     def kill(self) -> None:
         with task_threads_lock:
-            self.running = False
             self.finished = True
 
 class ChampdUpConfig(GenericGameConfig):
@@ -137,10 +133,10 @@ class ChampdUp(Game):
         return self.config.public[key]
     
     async def iter_game_events(self) -> None:
-        self.timer.kill()
+        self.debug("iter_game_events called")
         event_before = self.get_current_event()
         if event_before.name in ("V1", "V2"):
-            ... # Loop V1/V2 until all vote rounds are complete
+            self.debug("AAAAA")
         self.event_idx += 1
         self.debug(str(self.event_idx))
         if self.event_idx >= len(self.events):
