@@ -13,6 +13,10 @@ CONFIG_TEST_PATH = os.path.join(ROOT_PATH, "config.test.json") # Config for test
 
 MAX_USERNAME_LENGTH = 24
 
+#Misc
+SIMULATE_LAG_MAX = 120
+SIMULATE_LAG_MIN = 10
+
 if __name__ == "__main__":
     print(f"ROOT_PATH: {ROOT_PATH}")
     print(f"CONFIG_PATH: {CONFIG_PATH}")

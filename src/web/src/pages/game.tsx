@@ -49,7 +49,14 @@ export const GamePage = () => {
   >([]);
 
   const { sendJsonMessage, lastJsonMessage, readyState } =
-    useWebSocket<RJsonMessage<DefaultMessageType> | null>(socketUrl);
+    useWebSocket<RJsonMessage<DefaultMessageType> | null>(socketUrl, {
+      shouldReconnect: () => true,
+      reconnectInterval: (attempts: number) => {
+        const delay = Math.min(Math.pow(2, attempts), 30000);
+        
+        return delay;
+      } // Exponential backoff (at max 30s latency)
+    });
 
   useEffect(() => {
     g.setSendJsonMessage(sendJsonMessage);
@@ -64,6 +71,10 @@ export const GamePage = () => {
     if (lastJsonMessage !== null) {
       // setMessageHistory((prev) => prev.concat(lastJsonMessage)); // add later?
       g.setLastJsonMessage(lastJsonMessage);
+
+      if (lastJsonMessage.ping) {
+        g.setPing(lastJsonMessage.ping);
+      }
 
       if (lastJsonMessage.type == DefaultMessageType.STATE) {
         setHostConnected(lastJsonMessage.value.host_connected);

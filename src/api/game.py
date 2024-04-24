@@ -1,6 +1,8 @@
 import hashlib
+import random
 import string
 import anyio
+import json
 
 from typing import Dict, List, Any, Union, TypeVar, Literal, Generic, Callable
 from terminal import Terminal
@@ -14,8 +16,11 @@ from broadcaster import Broadcast
 from fastapi import WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketState
 from colorama import init, Fore
+from globals import SIMULATE_LAG_MIN, SIMULATE_LAG_MAX, DEBUG, CONFIG_PATH
+from config import Config
 
 init(autoreset=True)
+global_config = Config.load_config(CONFIG_PATH)
 
 HOST_USERNAME = 0
 
@@ -74,6 +79,7 @@ class DefaultMessageTypes(str, Enum, metaclass=MetaEnum):
     DISCONNECT = "DISCONNECT"
     STATE = "STATE",
     STATUS = "STATUS",
+    PING = "PING",
 
 T = TypeVar("T")
 
@@ -81,6 +87,7 @@ class MessageSchema(BaseModel, Generic[T]):
     type: DefaultMessageTypes | T
     value: Any
     author: Player | Literal[0]
+    ping: float | int | None = None
 
 class ProcessedMessage(BaseModel):
     """Returned by process_host_message and
@@ -216,11 +223,18 @@ class Game(Generic[T]):
             message=msg,
         )'''
     
-    async def send(self, ws: WebSocket, msg: MessageSchema) -> None:
+    async def send(self, ws: WebSocket, msg: MessageSchema, show_ping: bool = True) -> None:
         try:
             if msg.author == 0:
                 msg.author = get_author_as_host()
-            await ws.send_text(msg.json())
+            if DEBUG and global_config.simulate_lag:
+                lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms
+                await anyio.sleep(lag/1000)
+                if show_ping:
+                    msg.ping = lag
+                await ws.send_text(msg.json())
+            else:
+                await ws.send_text(msg.json())
         except RuntimeError:
             self.debug(f"{ws} is closed, consider removing from self.ws_map :: SKIPPING SEND")
     

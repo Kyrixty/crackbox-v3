@@ -143,7 +143,7 @@ const RunningComponent = () => {
 };
 
 export const ChampdUp = () => {
-  const { lastJsonMessage } = useMessenger<MessageType>();
+  const { lastJsonMessage, ping } = useMessenger<MessageType>();
   const {
     currentEvent,
     currentEventData,
@@ -170,11 +170,12 @@ export const ChampdUp = () => {
         <RunningComponent />
       </StatusComponent>
       <StatusComponent status_name={GameStatus.STOPPED}>
-        <Text>This is the Stopped Component</Text>
+        <Text>The game is no longer active, please try connecting to another game.</Text>
       </StatusComponent>
       <DevConsole
         get_game_state={() => {
           return {
+            ping,
             hostConnected,
             status,
             players,

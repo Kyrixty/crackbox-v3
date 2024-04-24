@@ -11,6 +11,7 @@ export type RJsonMessage<T> = {
   type: T;
   value: any;
   author: Player | 0;
+  ping: number | null;
 }
 
 export const READYSTATE_MAP = {
@@ -24,10 +25,12 @@ export const READYSTATE_MAP = {
 export interface MessageContext<T> {
   lastJsonMessage: RJsonMessage<T>;
   readyState: ReadyState;
+  ping: number | null;
   setLastJsonMessage: (m: RJsonMessage<T>) => void;
   sendJsonMessage: (m: JsonMessage<T>) => void;
   setSendJsonMessage: (sjm: (m: JsonMessage<T>) => void) => void;
   setReadyState: (s: ReadyState) => void;
+  setPing: (p: number | null) => void;
 }
 
 const err = (e: string) => {
@@ -35,12 +38,14 @@ const err = (e: string) => {
 }
 
 const useMessageContextImplementation = create<MessageContext<any>>((set) => ({
-  lastJsonMessage: {type: null, value: null, author: 0},
+  lastJsonMessage: {type: null, value: null, author: 0, ping: null},
   readyState: ReadyState.CLOSED,
+  ping: null,
   setLastJsonMessage: (m: any) => set(() => ({lastJsonMessage: m})),
   sendJsonMessage: (m: any) => err("sendJsonMessage"),
   setSendJsonMessage: (sjm: (m: any) => void) => set(() => ({sendJsonMessage: sjm})),
   setReadyState: (s: ReadyState) => set(() => ({readyState: s})),
+  setPing: (p: number | null) => set(() => ({ping: p})),
 }));
 
 export const useMessenger = useMessageContextImplementation as {

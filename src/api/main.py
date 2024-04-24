@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config import Config
 from terminal import Terminal, TerminalOpts
-from globals import DEBUG, ROOT_PATH, ENV_PATH, CONFIG_PATH, MAX_USERNAME_LENGTH
+from globals import DEBUG, ROOT_PATH, ENV_PATH, CONFIG_PATH, MAX_USERNAME_LENGTH, SIMULATE_LAG_MAX, SIMULATE_LAG_MIN
 from dotenv import load_dotenv
 from enum import Enum
 from metaenum import MetaEnum
@@ -37,8 +37,6 @@ from datauri import DataURI
 
 ## :: App setup
 load_dotenv(ENV_PATH)
-SIMULATE_LAG_MAX = 120
-SIMULATE_LAG_MIN = 10
 
 authConfig = AuthXConfig(
     JWT_ALGORITHM="HS256",

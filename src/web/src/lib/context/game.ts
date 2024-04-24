@@ -9,6 +9,7 @@ export enum DefaultMessageType {
   DISCONNECT = "DISCONNECT",
   STATE = "STATE",
   STATUS = "STATUS",
+  PING = "PING",
 }
 
 export enum GameStatus {
