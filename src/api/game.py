@@ -1,10 +1,11 @@
+import threading
 import hashlib
 import random
 import string
 import anyio
 import json
 
-from typing import Dict, List, Any, Union, TypeVar, Literal, Generic, Callable
+from typing import Dict, List, Any, Union, TypeVar, Literal, Generic, Callable, Tuple, Coroutine
 from terminal import Terminal
 from player import Player, create_player, ConnectionStatus, get_author_as_host
 from result import Result
@@ -25,6 +26,22 @@ global_config = Config.load_config(CONFIG_PATH)
 HOST_USERNAME = 0
 
 Author = Player | Literal[0]
+
+task_threads = []
+task_threads_lock = threading.Lock()
+
+def create_threaded_async_action(
+    action: Coroutine, args: Tuple = ()
+) -> Callable:
+    global task_threads
+    def wrapper():
+        async def do_async() -> None:
+            await action(*args)
+        t = threading.Thread(target=anyio.run, args=(do_async,), daemon=False)
+        task_threads.append(t)
+        t.start()
+
+    return wrapper
 
 class GameStatus(str, Enum, metaclass=MetaEnum):
     WAITING = "WAITING"
@@ -224,19 +241,31 @@ class Game(Generic[T]):
         )'''
     
     async def send(self, ws: WebSocket, msg: MessageSchema, show_ping: bool = True) -> None:
-        try:
-            if msg.author == 0:
-                msg.author = get_author_as_host()
-            if DEBUG and global_config.simulate_lag:
-                lag = random.randint(SIMULATE_LAG_MIN, 2000) # ms
-                await anyio.sleep(lag/1000)
-                if show_ping:
-                    msg.ping = lag
-                await ws.send_text(msg.json())
-            else:
-                await ws.send_text(msg.json())
-        except RuntimeError:
-            self.debug(f"{ws} is closed, consider removing from self.ws_map :: SKIPPING SEND")
+        async def do_send():
+            try:
+                if msg.author == 0:
+                    msg.author = get_author_as_host()
+                if DEBUG and global_config.simulate_lag:
+                    lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms
+                    await anyio.sleep(lag/1000)
+                    if show_ping:
+                        msg.ping = lag
+                    await ws.send_text(msg.json())
+                else:
+                    await ws.send_text(msg.json())
+            except RuntimeError:
+                self.debug(f"{ws} is closed, consider removing from self.ws_map :: SKIPPING SEND")
+        
+        # Due to lag simulation, the server in DEBUG mode only with lag_simulation=True
+        # will result in the server sleeping before running consecutive send results.
+        # We thread `do_send` in DEBUG ONLY as a result (these threaded actions exit very soon after
+        # (a max of ~SIMULATE_LAG_MAX ms after being created)) (also note that in practical
+        # testing it is very hard to exceed the thread pool, as SIMULATE_LAG_MAX=120ms)
+
+        if DEBUG and global_config.simulate_lag:
+            create_threaded_async_action(do_send)()
+        else:
+            await do_send()
     
     async def handle_ws(self, ws: WebSocket, username: str | int, wsId: str) -> None:
         self.log(f"Handling websocket {wsId}..")

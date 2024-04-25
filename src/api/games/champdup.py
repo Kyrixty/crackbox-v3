@@ -3,7 +3,7 @@ import inspect
 import anyio
 import threading
 
-from game import Game, GenericGameConfig, PublicConfig, MessageSchema, ProcessedMessage, GameStatus
+from game import Game, GenericGameConfig, PublicConfig, MessageSchema, ProcessedMessage, GameStatus, create_threaded_async_action
 from result import Result
 from broadcaster import Broadcast
 from fastapi import WebSocket
@@ -28,19 +28,6 @@ DEFAULT_PUBLIC_ATTRS = {
 
 task_threads = []
 task_threads_lock = threading.Lock()
-
-def create_threaded_async_action(
-    action: Coroutine, args: Tuple = ()
-) -> Callable:
-    global task_threads
-    def wrapper():
-        async def do_async() -> None:
-            await action(*args)
-        t = threading.Thread(target=anyio.run, args=(do_async,), daemon=False)
-        task_threads.append(t)
-        t.start()
-
-    return wrapper
 
 class Timer:
     def __init__(self, name: str, t: Terminal, callback: Coroutine | Callable | None = None) -> None:

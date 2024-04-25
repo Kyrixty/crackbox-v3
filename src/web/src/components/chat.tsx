@@ -80,15 +80,22 @@ export const ChatDrawer = () => {
     );
   };
 
+  useEffect(() => scrollToBottom(), [msgs]);
+
   useEffect(() => {
     if (lastJsonMessage === null) return;
     if (lastJsonMessage.type === MessageType.CHAT) {
+      if (
+        lastJsonMessage.author !== 0 &&
+        lastJsonMessage.author.username === username &&
+        lastJsonMessage.author.username !== "Host"
+      )
+        return;
       setMsgs([...msgs, resolveMsg(lastJsonMessage)]);
       if (lastJsonMessage.author !== 0) {
         const p = lastJsonMessage.author;
         setShouldNotify(!opened && p.username !== username);
       }
-      scrollToBottom();
     }
     if (lastJsonMessage.type === MessageType.PM) {
       const sender = lastJsonMessage.value.from;
@@ -136,6 +143,16 @@ export const ChatDrawer = () => {
 
   const handleSendMessage = () => {
     _sendMessage();
+    const author = players.find((p: Player) => p.username === username);
+    if (!author) {
+      setMsg("");
+      return};
+    if (!msg.startsWith("/pm ")) {
+      setMsgs([
+        ...msgs,
+        resolveMsg({author, ping: null, type: MessageType.CHAT, value: msg }),
+      ]);
+    }
     setMsg("");
   };
 
