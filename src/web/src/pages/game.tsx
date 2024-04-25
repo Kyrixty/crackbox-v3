@@ -51,11 +51,12 @@ export const GamePage = () => {
   const { sendJsonMessage, lastJsonMessage, readyState } =
     useWebSocket<RJsonMessage<DefaultMessageType> | null>(socketUrl, {
       shouldReconnect: () => true,
+      reconnectAttempts: 10,
       reconnectInterval: (attempts: number) => {
-        const delay = Math.min(Math.pow(2, attempts), 30000);
-        
+        const delay = 5000;
+        console.warn(`Connection lost, attempting to reconnect in ${delay/1000} seconds`)
         return delay;
-      } // Exponential backoff (at max 30s latency)
+      },
     });
 
   useEffect(() => {

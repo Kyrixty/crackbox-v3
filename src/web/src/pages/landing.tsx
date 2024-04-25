@@ -346,15 +346,38 @@ const CreateForm = (props: FormProps & CreateProps) => {
 
 export const LandingPage = () => {
   const game = useGameContext();
+  const user = useUserContext();
   const [mode, setMode] = useState<"create" | "join">("join");
   const [gameModes, setGameModes] = useState<string[]>([]);
   const [msg, _] = useState(
     minecraftTexts[randomIntFromInterval(0, minecraftTexts.length - 1)]
   );
   const im = useMediaQuery("(max-width: 65em)");
+  const [canReconnect, setCanReconnect] = useState(false);
+  const [tried, setTried] = useState(false);
+  const api = getAPI();
 
+  const checkReconnectEligbility = async () => {
+    return await api
+      .get(`/game/can-reconnect/${game.gameId}/${user.ticket}`)
+      .then((res) => {
+        if (res.status === 200) {
+          user.setIsHost(res.data.is_host);
+        }
+        return res.status === 200;
+      });
+  };
+  useEffect(() => {
+  }, [tried]);
+  
   useEffect(() => {
     game.landingReset();
+    if (tried) return;
+    const checkReconnection = async () => {
+      const result = await checkReconnectEligbility();
+      setCanReconnect(result);
+      setTried(true);
+    };
     const api = getAPI();
     const doFetch = async () => {
       await api.get("/game/names/").then((res) => {
@@ -362,33 +385,10 @@ export const LandingPage = () => {
       });
     };
     doFetch();
+    checkReconnection();
   }, []);
 
   const ReconnectPrompt = () => {
-    const [canReconnect, setCanReconnect] = useState(false);
-    const { gameId } = useGameContext();
-    const { ticket, setIsHost } = useUserContext();
-    const api = getAPI();
-
-    const checkReconnectEligbility = async () => {
-      return await api
-        .get(`/game/can-reconnect/${gameId}/${ticket}`)
-        .then((res) => {
-          if (res.status === 200) {
-            setIsHost(res.data.is_host);
-          }
-          return res.status === 200;
-        });
-    };
-
-    useEffect(() => {
-      const doFetch = async () => {
-        const result = await checkReconnectEligbility();
-        setCanReconnect(result);
-      };
-      doFetch();
-    }, []);
-
     if (!canReconnect) return <></>;
     return (
       <Text size="sm" id="reconnect-prompt" onClick={() => redirect("/game")}>

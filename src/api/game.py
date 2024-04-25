@@ -228,7 +228,7 @@ class Game(Generic[T]):
             if msg.author == 0:
                 msg.author = get_author_as_host()
             if DEBUG and global_config.simulate_lag:
-                lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms
+                lag = random.randint(SIMULATE_LAG_MIN, 2000) # ms
                 await anyio.sleep(lag/1000)
                 if show_ping:
                     msg.ping = lag
