@@ -246,7 +246,7 @@ class Game(Generic[T]):
                 if msg.author == 0:
                     msg.author = get_author_as_host()
                 if DEBUG and global_config.simulate_lag:
-                    lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms
+                    lag = random.randint(1000, 2000) # ms
                     await anyio.sleep(lag/1000)
                     if show_ping:
                         msg.ping = lag
@@ -282,6 +282,9 @@ class Game(Generic[T]):
             self.players[username].connection_status = ConnectionStatus.CONNECTED
             await self.publish(DefaultMessageTypes.CONNECT, {"players": self.get_player_list(), "target": self.get_player(username).data}, 0)
         await self.send(ws, MessageSchema(type=DefaultMessageTypes.STATE, value=self.get_game_state(username), author=0))
+
+        if not isHost:
+            await self.on_player_connect(username)
 
         async with anyio.create_task_group() as task_group:
 
@@ -375,6 +378,12 @@ class Game(Generic[T]):
     def can_play(self) -> bool:
         return self.status != GameStatus.STOPPED
     
+    async def on_player_connect(self, username: str):
+        ...
+
+    async def on_player_disconnect(self, username: str):
+        ...
+    
     async def disconnect(self, username: str | int):
         isHost = username == HOST_USERNAME
         if isHost:
@@ -386,6 +395,7 @@ class Game(Generic[T]):
         player = self.get_player(username).data.model_copy()
         if self.status == GameStatus.WAITING:
             self.debug(f"LEAVING {username}")
+            await self.on_player_disconnect(username)
             self.leave(username)
         await self.publish(
             DefaultMessageTypes.DISCONNECT,

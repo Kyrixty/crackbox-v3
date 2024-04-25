@@ -27,3 +27,18 @@ export type Event = {
   timed: boolean;
   ends: string | null;
 }
+
+export type ImageData = {
+  author: string;
+  img_data_url: string;
+  title: string;
+};
+
+export type MatchupContext = {
+  imgs: ImageData[];
+  imgVotes: number[];
+
+  setImgs: (i: ImageData[]) => void;
+  setImgVotes: (v: number[]) => void;
+  resetMatchup: () => void;
+};

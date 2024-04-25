@@ -28,15 +28,7 @@ export const DevConsole = (props: DCProps) => {
           <ScrollArea h={400} w={500} style={{ wordBreak: "break-all" }}>
             <Stack gap="md">
               <ReactJson
-                src={{
-                  gameId,
-                  readyState: READYSTATE_MAP[readyState],
-                  gameState: gameState,
-                  lastJsonMessage,
-                  players,
-                  token,
-                  ticket,
-                }}
+                src={gameState}
                 theme="bespin"
                 enableClipboard
                 collapsed={2}

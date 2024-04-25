@@ -178,9 +178,10 @@ export const ChampdUp = () => {
             ping,
             hostConnected,
             status,
-            players,
+            lastJsonMessage,
             currentEvent,
             currentEventData,
+            players,
           };
         }}
       />

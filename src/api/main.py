@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 from enum import Enum
 from metaenum import MetaEnum
 from games.champdup import ChampdUp, ChampdUpConfig
+from games.test_multi_draw import TestMultiDraw
 from games.test import MyCustomGame
 from pydantic import BaseModel
 from broadcaster import Broadcast
@@ -61,10 +62,12 @@ app.add_middleware(
 # :: Game map
 class GameName(str, Enum, metaclass=MetaEnum):
     CHAMPDUP = "Champ'd Up"
+    TESTMULTIDRAW = "TEST MULTI DRAW"
     TEST = "TEST"
 
 game_name_map: dict[GameName, Type[Game]] = {
     GameName.CHAMPDUP: ChampdUp,
+    GameName.TESTMULTIDRAW: TestMultiDraw,
     GameName.TEST: MyCustomGame,
 }
 
@@ -174,6 +177,10 @@ class GameManager:
         del self.games[id]
 
 gm = GameManager()
+TEST_MULTIDRAW_ID = ""
+
+if DEBUG:
+    TEST_MULTIDRAW_ID = gm.create_game(GameName.TESTMULTIDRAW, {}).data.id
 
 def get_game(id: str) -> Game:
     res = gm.get_game(id)
@@ -331,6 +338,23 @@ async def join_game(ws: WebSocket, gameId: str, ticket: str):
         return
     game = get_game(gameId)
     await game.play(ws, resolve_ws_ticket(ticket, gameId).data)
+
+tmd_ctr = 0
+
+@game_router.websocket("/test-multi-draw")
+async def test_multi_draw(ws: WebSocket):
+    # No validation required for ws
+    global tmd_ctr
+    tmd_ctr += 1
+    if not DEBUG:
+        return
+    game = get_game(TEST_MULTIDRAW_ID)
+    username = f"P_{tmd_ctr}"
+    p = create_player(username, 20, "")
+    r = game.join(p)
+    print(r.reason, r.data)
+    await ws.accept()
+    await game.play(ws, username)
 
 # :: Include routers
 app.include_router(game_router)
