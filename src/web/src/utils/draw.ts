@@ -20,12 +20,12 @@ export interface PathData {
   opts: DrawPathOptions;
 }
 
-export const drawPath = (
-  ctx: CanvasRenderingContext2D,
-  pathData: PathData,
-) => {
+export const drawPath = (ctx: CanvasRenderingContext2D, pathData: PathData) => {
   const path = pathData.path;
-  const { color, lineCap, lineJoin, lineWidth } = {...defaults, ...pathData.opts};
+  const { color, lineCap, lineJoin, lineWidth } = {
+    ...defaults,
+    ...pathData.opts,
+  };
   ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
   ctx.lineJoin = lineJoin;
@@ -40,10 +40,7 @@ export const drawPath = (
   ctx.stroke();
 };
 
-export const drawPaths = (
-  ctx: CanvasRenderingContext2D,
-  paths: PathData[],
-) => {
+export const drawPaths = (ctx: CanvasRenderingContext2D, paths: PathData[]) => {
   if (paths && paths.length) {
     for (let i = 0; i < paths.length; i++) {
       drawPath(ctx, paths[i]);
@@ -51,11 +48,16 @@ export const drawPaths = (
   }
 };
 
-export function drawDataURIOnCanvas(strDataURI: string, canvas: CanvasRenderingContext2D) {
+export function drawDataURIOnCanvas(
+  strDataURI: string,
+  canvas: CanvasRenderingContext2D,
+  callback?: () => void,
+) {
   "use strict";
   var img = new window.Image();
   img.addEventListener("load", function () {
-      canvas.drawImage(img, 0, 0);
+    canvas.drawImage(img, 0, 0);
+    callback?.();
   });
   img.setAttribute("src", strDataURI);
 }

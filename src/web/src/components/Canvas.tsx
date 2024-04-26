@@ -6,13 +6,14 @@ type CanvasProps = {
   onMouseDown?: React.MouseEventHandler;
   onMouseMove?: React.MouseEventHandler;
   onMouseUp?: React.MouseEventHandler;
+  onMouseOut: React.MouseEventHandler;
   onTouchStart?: React.TouchEventHandler;
   onTouchMove?: React.TouchEventHandler;
   onTouchEnd?: React.TouchEventHandler;
 };
 
 export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(
-  ({ size, styles, onMouseDown, onMouseMove, onMouseUp, onTouchStart, onTouchEnd, onTouchMove }, ref) => {
+  ({ size, styles, onMouseDown, onMouseMove, onMouseUp, onMouseOut, onTouchStart, onTouchEnd, onTouchMove }, ref) => {
     return (
       <canvas
         height={size}
@@ -22,6 +23,7 @@ export const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(
         onMouseDown={(evt) => onMouseDown && onMouseDown(evt)}
         onMouseMove={(evt) => onMouseMove && onMouseMove(evt)}
         onMouseUp={(evt) => onMouseUp && onMouseUp(evt)}
+        onMouseOut={(evt) => onMouseOut && onMouseOut(evt)}
         onTouchStart={(evt) => onTouchStart && onTouchStart(evt)}
         onTouchMove={(evt) => onTouchMove && onTouchMove(evt)}
         onTouchEnd={(evt) => onTouchEnd && onTouchEnd(evt)}

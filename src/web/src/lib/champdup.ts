@@ -7,8 +7,12 @@ export enum MessageType {
   DISCONNECT = "DISCONNECT",
   CHAT = "CHAT",
   PM = "PM",
+  NOTIFY = "NOTIFY",
   POLL = "POLL",
   POLL_VOTE = "POLL_VOTE",
+  IMAGE = "IMAGE",
+  MATCHUP = "MATCHUP",
+  MATCHUP_VOTE = "MATCHUP_VOTE"
 }
 
 export enum EventNames {
@@ -42,3 +46,9 @@ export type MatchupContext = {
   setImgVotes: (v: number[]) => void;
   resetMatchup: () => void;
 };
+
+export enum NotifyType {
+  SUCCESS = "SUCCESS",
+  FAIL = "FAIL",
+  INFO = "INFO",
+}

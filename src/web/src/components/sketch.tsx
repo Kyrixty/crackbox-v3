@@ -195,10 +195,10 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const draw = useCallback(() => {
     const ctx = getContext();
     //ctx.clearRect(0, 0, size, size);
+    const c = () => drawPaths(ctx, paths);
     if (bgDataURI !== null) {
-      drawDataURIOnCanvas(bgDataURI, ctx);
+      drawDataURIOnCanvas(bgDataURI, ctx, c);
     }
-    drawPaths(ctx, paths);
   }, [drawOpts, getContext, paths, size, bgDataURI]);
 
   useEffect(() => {
@@ -362,6 +362,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleDrawEnd}
+          onMouseOut={handleDrawEnd}
           onTouchMove={handleTouchMove}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleDrawEnd}
