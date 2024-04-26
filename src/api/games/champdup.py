@@ -2,6 +2,8 @@ import datetime
 import inspect
 import anyio
 import threading
+import random
+import os
 
 from game import Game, GenericGameConfig, PublicConfig, MessageSchema, ProcessedMessage, GameStatus, create_threaded_async_action
 from result import Result
@@ -100,7 +102,8 @@ class Poll(BaseModel):
 class Image(BaseModel):
     title: str
     data_uri: str | None = None
-    artist: list[Player]
+    artists: list[Player]
+    prompt: str
 
 class ImageMatchup(BaseModel):
     left: Image
@@ -142,9 +145,20 @@ class MatchupManager:
         self._idx = 0
         self.matchups = []
     
+dirname = os.path.dirname(__file__)
+with open(f"{dirname}/champdup-prompts.txt", mode="r") as f:
+    prompts = [l.replace("\n", "") for l in f.readlines()]
+with open(f"{dirname}/champdup-default-titles.txt", mode="r") as f:
+    titles = [l.replace("\n", "") for l in f.readlines()]
+with open(f"{dirname}/champdup-didnt-draw.txt", mode="r") as f:
+    didnt_draw_data_uri = f.read()
+
 class DrawManager:
-    def __init__(self) -> None:
+    def __init__(self, player_list: list[Player]) -> None:
         self.images: dict[str, Image] = {}
+        self.prompts: dict[str, str] = {}
+        self.players = player_list
+        self.reset()
     
     def add_image(self, username: str, img: Image):
         self.images[username] = img
@@ -154,6 +168,46 @@ class DrawManager:
     
     def reset(self):
         self.images = {}
+        pool = prompts.copy()
+
+        for player in self.player_list:
+            prompt = random.choice(pool)
+            pool.remove(prompt)
+            self.images[player.username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=[player], prompt=prompt)
+
+    def create_counters(self) -> dict[str, Image]:
+        plrs = self.players
+        offset = random.randint(1, len(plrs) - 1)
+        # Get counters by applying an offset to each player
+        # (1 <= offset < len(plrs))
+        ctrs = [plrs[(plrs.index(plr) + offset) % len(plrs)].username for plr in plrs]
+        ctrImgMap = {}
+        for plr, ctr in zip(self.players, ctrs):
+            ctrImgMap[plr.username] = self.images[ctr]
+        return ctrImgMap
+
+class CounterManager:
+    def __init__(self, ctr_img_map: dict[str, Image]) -> None:
+        self.ctr_img_map: dict[str, Image] = ctr_img_map
+        self.ctrs: dict[str, Image] = {}
+
+        for username in self.ctr_img_map:
+            self.ctrs[username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=self.ctr_img_map[username].artists, prompt=random.choice(prompts))
+    
+    def set_ctr_img_map(self, map: dict[str, Image]):
+        self.ctr_img_map = map
+
+    def get_matchups(self) -> list[ImageMatchup]:
+        matchups = []
+        for og, ctr in zip(self.ctr_img_map.values(), self.ctrs.values()):
+            matchups.append(ImageMatchup(left=og, right=ctr, leftVotes=set(), rightVotes=set()))
+    
+    def set_ctr(self, username: str, img: Image):
+        self.ctrs[username] = img
+        
+    def reset(self):
+        self.set_ctr_img_map({})
+        self.ctrs = {}
 
 class Event(BaseModel):
     name: str
@@ -183,8 +237,10 @@ class ChampdUp(Game):
         for event_name in RUNNING_EVENTS:
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
         self.draw_manager = DrawManager()
+        self.ctr_manager = CounterManager({})
         self.matchup_manager = MatchupManager()
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
+    
     
     def get_public_field(self, key: str) -> Any:
         return self.config.public[key]
@@ -202,6 +258,9 @@ class ChampdUp(Game):
             return await self.iter_game_events()
         if event.name in ("D1", "D2"):
             self.draw_manager.reset()
+        if event.name in ("C1", "C2"):
+            self.ctr_manager.reset()
+            self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
         if event.timed:
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("draw_duration")))
             event.ends = ends.isoformat()
@@ -219,6 +278,8 @@ class ChampdUp(Game):
             return await self.iter_game_events()
         if self.matchup_manager.has_not_started():
             self.matchup_manager.reset()
+            for matchup in self.ctr_manager.get_matchups():
+                self.matchup_manager.add_matchup(left=matchup.left, right=matchup.right)
         for username in self.ws_map:
             ws = self.ws_map[username]
             await self.send(ws, MessageSchema(
@@ -234,12 +295,27 @@ class ChampdUp(Game):
         return self.events[self.event_idx]
     
     def get_game_state(self, username: str | int) -> dict[str, Any]:
+        event_data = {}
+        if self.get_current_event().name in ("D1", "D2"):
+            if username != 0:
+                event_data = {
+                    "prompt": self.draw_manager.prompts[username]
+                }
+        if self.get_current_event().name in ("C1", "C2"):
+            if username != 0:
+                event_data = {
+                    "counter": self.ctr_manager.ctr_img_map[username]
+                }
+        if self.get_current_event().name in ("V1", "V2"):
+            event_data = {
+                "matchup": self.matchup_manager.get_matchup()
+            }
         return {
             "host_connected": self.host_connected,
             "status": self.status,
             "players": self.get_player_list(),
             "event": self.get_current_event(),
-            "event_data": {},
+            "event_data": event_data,
             "via": username,
         }
     
@@ -441,7 +517,12 @@ class ChampdUp(Game):
             if msg.type == MessageType.IMAGE:
                 # User submitted draw image
                 if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str:
-                    self.draw_manager.add_image(username)
+                    self.draw_manager.add_image(username, Image(title=msg.value["title"], data_uri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
+                    pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"})
+        if self.get_current_event().name in ("C1", "C2"):
+            if msg.type == MessageType.IMAGE:
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str:
+                    self.ctr_manager.set_ctr(username, Image(title=msg.value["title"], data_uri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.ctr_manager.ctr_img_map[username].prompt))
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"})
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
