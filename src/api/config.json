@@ -1,1 +1,1 @@
-{"simulate_lag":true}
+{"simulate_http_lag":true,"simulate_ws_lag":true}

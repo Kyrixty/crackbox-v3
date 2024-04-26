@@ -1,3 +1,5 @@
+import datetime
+
 from game import Game, ProcessedMessage, MessageSchema
 from fastapi import WebSocket
 from broadcaster import Broadcast
@@ -50,6 +52,7 @@ class TestMultiDraw(Game):
             v = msg.value
             if "title" in v and "path" in v and "dUri" in v:
                 self.last_data_uri = v["dUri"]
+                v["timestamp"] = datetime.datetime.now().isoformat()
                 for u in self.ws_map:
                     if u == username:
                         continue

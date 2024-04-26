@@ -83,7 +83,7 @@ if DEBUG:
 # Setup lag simulation (if set to true in config.json and DEBUG=true)
 @app.middleware("http")
 async def simulate_latency(request: Request, call_next):
-    if not DEBUG or not config.simulate_lag:
+    if not DEBUG or not config.simulate_http_lag:
         response = await call_next(request)
         return response
     lag = random.randint(SIMULATE_LAG_MIN, SIMULATE_LAG_MAX) # ms, both ways

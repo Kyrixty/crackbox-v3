@@ -245,7 +245,7 @@ class Game(Generic[T]):
             try:
                 if msg.author == 0:
                     msg.author = get_author_as_host()
-                if DEBUG and global_config.simulate_lag:
+                if DEBUG and global_config.simulate_ws_lag:
                     lag = random.randint(1000, 2000) # ms
                     await anyio.sleep(lag/1000)
                     if show_ping:
@@ -262,7 +262,7 @@ class Game(Generic[T]):
         # (a max of ~SIMULATE_LAG_MAX ms after being created)) (also note that in practical
         # testing it is very hard to exceed the thread pool, as SIMULATE_LAG_MAX=120ms)
 
-        if DEBUG and global_config.simulate_lag:
+        if DEBUG and global_config.simulate_ws_lag:
             create_threaded_async_action(do_send)()
         else:
             await do_send()

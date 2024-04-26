@@ -14,6 +14,7 @@ from typing import Literal, Any, Coroutine, Callable, Tuple
 from pydantic import BaseModel
 from globals import MAX_USERNAME_LENGTH, DEBUG
 from fuzzywuzzy import fuzz
+from player import Player
 
 DEFAULT_PUBLIC_ATTRS = {
     "max_players": 10,
@@ -77,6 +78,15 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     POLL = "POLL"
     POLL_VOTE = "POLL_VOTE"
     PM = "PM"
+    NOTIFY = "NOTIFY"
+    IMAGE = "IMAGE"
+    MATCHUP = "MATCHUP"
+    MATCHUP_VOTE = "MATCHUP_VOTE"
+
+class NotifyType(str, Enum, metaclass=MetaEnum):
+    SUCCESS = "SUCCESS"
+    FAIL = "FAIL"
+    INFO = "INFO"
 
 class Poll(BaseModel):
     ends: str
@@ -86,6 +96,64 @@ class Poll(BaseModel):
 
     def is_active(self) -> bool:
         return datetime.datetime.fromisoformat(self.ends) > datetime.datetime.now()
+
+class Image(BaseModel):
+    title: str
+    data_uri: str | None = None
+    artist: list[Player]
+
+class ImageMatchup(BaseModel):
+    left: Image
+    leftVotes: set[str]
+    right: Image
+    rightVotes: set[str]
+
+    def add_vote(self, username: str, target: Literal["left", "right"]):
+        if target == "left":
+            if username in self.rightVotes:
+                self.rightVotes.remove(username)
+            self.leftVotes.add(username)
+        elif target == "right":
+            if username in self.leftVotes:
+                self.leftVotes.remove(username)
+            self.rightVotes.add(username)
+
+class MatchupManager:
+    def __init__(self) -> None:
+        self._idx = -1
+        self.matchups: list[ImageMatchup] = []
+    
+    def has_not_started(self) -> bool:
+        return self._idx == -1
+    
+    def has_ended(self) -> bool:
+        return self._idx >= len(self.matchups)
+    
+    def next_matchup(self):
+        self._idx += 1
+    
+    def get_matchup(self):
+        return self.matchups[self._idx]
+    
+    def add_matchup(self, left: Image, right: Image):
+        self.matchups.append(ImageMatchup(left=left, right=right, leftVotes=set(), rightVotes=set()))
+    
+    def reset(self):
+        self._idx = 0
+        self.matchups = []
+    
+class DrawManager:
+    def __init__(self) -> None:
+        self.images: dict[str, Image] = {}
+    
+    def add_image(self, username: str, img: Image):
+        self.images[username] = img
+    
+    def get_images(self) -> list[Image]:
+        return list(self.images.values())
+    
+    def reset(self):
+        self.images = {}
 
 class Event(BaseModel):
     name: str
@@ -101,7 +169,7 @@ RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B", "L"]
 # and the bonus round timers behave differently (vote timer is per image,
 # multiple types of bonus rounds with different timers each). The events 
 # below can be handled generically though
-TIMED_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B"]
+TIMED_EVENTS = ["D1", "C1", "D2", "C2"]
 
 class ChampdUp(Game):
     poll: None | Poll
@@ -114,6 +182,8 @@ class ChampdUp(Game):
         self.events: list[Event] = []
         for event_name in RUNNING_EVENTS:
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
+        self.draw_manager = DrawManager()
+        self.matchup_manager = MatchupManager()
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
     
     def get_public_field(self, key: str) -> Any:
@@ -122,8 +192,6 @@ class ChampdUp(Game):
     async def iter_game_events(self) -> None:
         self.debug("iter_game_events called")
         event_before = self.get_current_event()
-        if event_before.name in ("V1", "V2"):
-            self.debug("AAAAA")
         self.event_idx += 1
         self.debug(str(self.event_idx))
         if self.event_idx >= len(self.events):
@@ -132,13 +200,35 @@ class ChampdUp(Game):
         self.debug(f"Processing {event.name}..")
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
             return await self.iter_game_events()
+        if event.name in ("D1", "D2"):
+            self.draw_manager.reset()
         if event.timed:
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("draw_duration")))
             event.ends = ends.isoformat()
             await self.timer.start(ends)
         for username in self.ws_map:
             await self.send(self.ws_map[username], MessageSchema(type=MessageType.STATE, value=self.get_game_state(username), author=0))
+        if event.name in ("V1", "V2"):
+            await self.iter_vote_round()
         
+    
+    async def iter_vote_round(self):
+        if self.matchup_manager.has_ended():
+            self.timer.callback = self.iter_game_events
+            self.event_idx += 1
+            return await self.iter_game_events()
+        if self.matchup_manager.has_not_started():
+            self.matchup_manager.reset()
+        for username in self.ws_map:
+            ws = self.ws_map[username]
+            await self.send(ws, MessageSchema(
+                type=MessageType.MATCHUP,
+                value=self.matchup_manager.get_matchup(),
+                author=0,
+            ))
+        self.timer.callback = self.iter_vote_round
+        ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("vote_duration")))
+        await self.timer.start(ends)
     
     def get_current_event(self) -> Event:
         return self.events[self.event_idx]
@@ -346,6 +436,21 @@ class ChampdUp(Game):
         if msg.type == MessageType.POLL_VOTE:
             if msg.value.lower() in ("yes", "no"):
                 return self.handle_poll_vote(msg.value.lower(), username)
+            
+        if self.get_current_event().name in ("D1", "D2"):
+            if msg.type == MessageType.IMAGE:
+                # User submitted draw image
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str:
+                    self.draw_manager.add_image(username)
+                    pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"})
+        if self.get_current_event().name in ("V1", "V2"):
+            if msg.type == MessageType.MATCHUP_VOTE:
+                if msg.value in ("left", "right"):
+                    self.matchup_manager.get_matchup().add_vote(username, msg.value)
+                    pm.add_broadcast(MessageType.MATCHUP_VOTE, {
+                        "left": self.matchup_manager.get_matchup().leftVotes,
+                        "right": self.matchup_manager.get_matchup().rightVotes,
+                    })
         return pm
 
 import atexit
