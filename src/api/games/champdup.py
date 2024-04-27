@@ -170,7 +170,7 @@ class DrawManager:
         self.images = {}
         pool = prompts.copy()
 
-        for player in self.player_list:
+        for player in self.players:
             prompt = random.choice(pool)
             pool.remove(prompt)
             self.images[player.username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=[player], prompt=prompt)
@@ -236,7 +236,7 @@ class ChampdUp(Game):
         self.events: list[Event] = []
         for event_name in RUNNING_EVENTS:
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
-        self.draw_manager = DrawManager()
+        self.draw_manager = DrawManager([])
         self.ctr_manager = CounterManager({})
         self.matchup_manager = MatchupManager()
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
@@ -258,6 +258,7 @@ class ChampdUp(Game):
             return await self.iter_game_events()
         if event.name in ("D1", "D2"):
             self.draw_manager.reset()
+            self.draw_manager.players = self.get_player_list()
         if event.name in ("C1", "C2"):
             self.ctr_manager.reset()
             self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
@@ -429,8 +430,6 @@ class ChampdUp(Game):
         player_names = list(self.players.keys())
         partition = ""
         words = text.split(" ")
-        matches: list[str] = []
-        matched_partitions: list[str] = []
         for word in words:
             partition = " ".join([partition, word]).strip()
             for v in sorted(player_names, key=lambda x: len(x)):
@@ -439,22 +438,9 @@ class ChampdUp(Game):
                 if v.lower() == partition.lower():
                     match = v
                     matched_partition = partition
-                    matches = [v]
-                    matched_partitions = [partition]
                     break
-                if v.lower().startswith(partition.lower()):
-                    matches.append(v)
-                    matched_partitions.append(partition)
             if match or len(partition) > MAX_USERNAME_LENGTH:
                 break
-        for m in matches:
-            p = matched_partitions[matches.index(m)]
-            if p.lower() == m.lower():
-                match = m
-                matched_partition = p
-                break
-            match = m
-            matched_partition = p
         #match = list(self.players.keys())[player_lower.index(partition.lower())]
         if match and sender != match:
             msg = text[len(matched_partition):].strip()

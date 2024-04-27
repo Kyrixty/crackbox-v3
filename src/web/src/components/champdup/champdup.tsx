@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import "@/css/champdup.css";
 import { ChatDrawer } from "../chat";
 import { Poll } from "../poll";
-import { useMessenger } from "@lib/context/ws";
+import { useMessenger, READYSTATE_MAP } from "@lib/context/ws";
 import { useChampdUpContext } from "@lib/context/champdup";
 import { HostComponent, StatusComponent } from "@components/conditional";
 import { DevConsole } from "@components/dev";
@@ -143,14 +143,15 @@ const RunningComponent = () => {
 };
 
 export const ChampdUp = () => {
-  const { lastJsonMessage, ping } = useMessenger<MessageType>();
+  const { lastJsonMessage, ping, readyState } = useMessenger<MessageType>();
   const {
     currentEvent,
     currentEventData,
     setCurrentEvent,
     setCurrentEventData,
   } = useChampdUpContext();
-  const { hostConnected, players, status } = useGameContext();
+  const { gameId, hostConnected, players, status } = useGameContext();
+  const rs = READYSTATE_MAP[readyState];
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
@@ -175,6 +176,8 @@ export const ChampdUp = () => {
       <DevConsole
         get_game_state={() => {
           return {
+            gameId,
+            rs,
             ping,
             hostConnected,
             status,
