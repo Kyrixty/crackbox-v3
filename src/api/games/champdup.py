@@ -305,11 +305,13 @@ class ChampdUp(Game):
         event_data = {}
         if self.get_current_event().name in ("D1", "D2"):
             if username != 0:
+                self.debug(self.draw_manager.prompts[username])
                 event_data = {
                     "prompt": self.draw_manager.prompts[username]
                 }
         if self.get_current_event().name in ("C1", "C2"):
             if username != 0:
+                self.debug(str(self.ctr_manager.ctr_img_map[username]))
                 event_data = {
                     "counter": self.ctr_manager.ctr_img_map[username]
                 }
