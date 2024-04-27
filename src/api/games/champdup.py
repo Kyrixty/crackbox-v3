@@ -142,7 +142,7 @@ class MatchupManager:
         self.matchups.append(ImageMatchup(left=left, right=right, leftVotes=set(), rightVotes=set()))
     
     def reset(self):
-        self._idx = 0
+        self._idx = -1
         self.matchups = []
     
 dirname = os.path.dirname(__file__)
@@ -156,6 +156,7 @@ with open(f"{dirname}/champdup-didnt-draw.txt", mode="r") as f:
 class DrawManager:
     def __init__(self, player_list: list[Player]) -> None:
         self.images: dict[str, Image] = {}
+        self.prompt_pool = prompts.copy()
         self.prompts: dict[str, str] = {}
         self.players = player_list
         self.reset()
@@ -168,11 +169,11 @@ class DrawManager:
     
     def reset(self):
         self.images = {}
-        pool = prompts.copy()
 
         for player in self.players:
-            prompt = random.choice(pool)
-            pool.remove(prompt)
+            prompt = random.choice(self.prompt_pool)
+            self.prompt_pool.remove(prompt)
+            self.prompts[player.username] = prompt
             self.images[player.username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=[player], prompt=prompt)
 
     def create_counters(self) -> dict[str, Image]:
@@ -191,16 +192,17 @@ class CounterManager:
         self.ctr_img_map: dict[str, Image] = ctr_img_map
         self.ctrs: dict[str, Image] = {}
 
-        for username in self.ctr_img_map:
-            self.ctrs[username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=self.ctr_img_map[username].artists, prompt=random.choice(prompts))
     
     def set_ctr_img_map(self, map: dict[str, Image]):
         self.ctr_img_map = map
+        for username in self.ctr_img_map:
+            self.ctrs[username] = Image(title=random.choice(titles), data_uri=didnt_draw_data_uri, artists=self.ctr_img_map[username].artists, prompt=random.choice(prompts))
 
     def get_matchups(self) -> list[ImageMatchup]:
         matchups = []
         for og, ctr in zip(self.ctr_img_map.values(), self.ctrs.values()):
             matchups.append(ImageMatchup(left=og, right=ctr, leftVotes=set(), rightVotes=set()))
+        return matchups
     
     def set_ctr(self, username: str, img: Image):
         self.ctrs[username] = img
@@ -257,11 +259,16 @@ class ChampdUp(Game):
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
             return await self.iter_game_events()
         if event.name in ("D1", "D2"):
-            self.draw_manager.reset()
             self.draw_manager.players = self.get_player_list()
+            self.draw_manager.reset()
         if event.name in ("C1", "C2"):
             self.ctr_manager.reset()
             self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
+        if event.name in ("V1", "V2"):
+            self.matchup_manager.reset()
+            # Setup matchup manager state before broadcasting & handling vote rounds
+            for matchup in self.ctr_manager.get_matchups():
+                self.matchup_manager.add_matchup(matchup.left, matchup.right)
         if event.timed:
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("draw_duration")))
             event.ends = ends.isoformat()
@@ -269,18 +276,17 @@ class ChampdUp(Game):
         for username in self.ws_map:
             await self.send(self.ws_map[username], MessageSchema(type=MessageType.STATE, value=self.get_game_state(username), author=0))
         if event.name in ("V1", "V2"):
+            # Begin handling vote rounds
             await self.iter_vote_round()
         
     
     async def iter_vote_round(self):
+        if not self.matchup_manager.matchups:
+            self.error("No matchups found at vote round. iter_vote_round will likely error, ensure matchup_manager's matchups have been set before iter_vote_round is called!")
+        self.matchup_manager.next_matchup()
         if self.matchup_manager.has_ended():
             self.timer.callback = self.iter_game_events
-            self.event_idx += 1
             return await self.iter_game_events()
-        if self.matchup_manager.has_not_started():
-            self.matchup_manager.reset()
-            for matchup in self.ctr_manager.get_matchups():
-                self.matchup_manager.add_matchup(left=matchup.left, right=matchup.right)
         for username in self.ws_map:
             ws = self.ws_map[username]
             await self.send(ws, MessageSchema(
@@ -308,9 +314,10 @@ class ChampdUp(Game):
                     "counter": self.ctr_manager.ctr_img_map[username]
                 }
         if self.get_current_event().name in ("V1", "V2"):
-            event_data = {
-                "matchup": self.matchup_manager.get_matchup()
-            }
+            if not self.matchup_manager.has_not_started():
+                event_data = {
+                    "matchup": self.matchup_manager.get_matchup()
+                }
         return {
             "host_connected": self.host_connected,
             "status": self.status,
