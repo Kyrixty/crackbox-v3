@@ -117,7 +117,7 @@ class MyCustomGame(Game):
                     if _username == username:
                         continue
                     ws = self.ws_map[_username]
-                    self.send(ws, MessageSchema(
+                    await self.send(ws, MessageSchema(
                         type=MessageType.CHAT,
                         value=msg.value,
                         author=self.get_player(username).data
