@@ -14,18 +14,26 @@ import {
   Title,
 } from "@mantine/core";
 import { isDesktop, isMobile, isTablet } from "@utils/device";
-import { MessageType } from "@lib/champdup";
-import { useEffect } from "react";
+import { EventNames, MatchupContext, MessageType } from "@lib/champdup";
+import { useEffect, useState } from "react";
 import "@/css/champdup.css";
 import { ChatDrawer } from "../chat";
 import { Poll } from "../poll";
 import { useMessenger, READYSTATE_MAP } from "@lib/context/ws";
 import { useChampdUpContext } from "@lib/context/champdup";
-import { HostComponent, StatusComponent } from "@components/conditional";
+import {
+  Conditional,
+  HostComponent,
+  PlayerComponent,
+  StatusComponent,
+} from "@components/conditional";
 import { DevConsole } from "@components/dev";
 import { ToHome } from "@components/home";
 import { Disconnected } from "@components/disconnected";
 import { CrackboxLogoGrid } from "@components/crackbox";
+import { EventComponent } from "./conditional";
+import { SketchPad } from "@components/sketch";
+import { HostImageCandidate } from "./image";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -108,7 +116,11 @@ const Lobby = () => {
               return (
                 <>
                   {im ? (
-                    <Avatar style={{ boxShadow: "1px 1px 12px 4px black" }} size="xl" src={p.avatar_data_url} />
+                    <Avatar
+                      style={{ boxShadow: "1px 1px 12px 4px black" }}
+                      size="xl"
+                      src={p.avatar_data_url}
+                    />
                   ) : (
                     <PlayerCard p={p} />
                   )}
@@ -135,9 +147,50 @@ const Lobby = () => {
 };
 
 const RunningComponent = () => {
+  const { currentEventData } = useChampdUpContext();
+  const { lastJsonMessage } = useMessenger<MessageType>();
+  const [matchup, setMatchup] = useState<MatchupContext | null>(null);
+
+  useEffect(() => {
+    if (lastJsonMessage.type == MessageType.MATCHUP) {
+      setMatchup(lastJsonMessage.value);
+    }
+  }, [lastJsonMessage]);
+
   return (
     <div id="running-root" className="centered">
-      <Text>This is the Running Component</Text>
+      <EventComponent
+        name={[
+          EventNames.FirstDraw,
+          EventNames.FirstCounter,
+          EventNames.SecondDraw,
+          EventNames.SecondCounter,
+        ]}
+      >
+        <HostComponent>
+          <Text style={{ textShadow: "2px 2px 1px black" }}>
+            Waiting for players to finish drawing..
+          </Text>
+        </HostComponent>
+        <PlayerComponent>
+          <SketchPad gameData={currentEventData} />
+        </PlayerComponent>
+      </EventComponent>
+      <EventComponent name={[EventNames.FirstVote, EventNames.SecondVote]}>
+        <HostComponent>
+          <Conditional condition={matchup !== null}>
+            <Group justify="space-around">
+              <HostImageCandidate image={matchup?.left} />
+              <HostImageCandidate image={matchup?.right} />
+            </Group>
+          </Conditional>
+          <Conditional condition={matchup === null}>
+            <Text style={{ textShadow: "2px 2px 1px black" }}>
+              Waiting for matchup data..
+            </Text>
+          </Conditional>
+        </HostComponent>
+      </EventComponent>
     </div>
   );
 };
@@ -171,7 +224,9 @@ export const ChampdUp = () => {
         <RunningComponent />
       </StatusComponent>
       <StatusComponent status_name={GameStatus.STOPPED}>
-        <Text>The game is no longer active, please try connecting to another game.</Text>
+        <Text>
+          The game is no longer active, please try connecting to another game.
+        </Text>
       </StatusComponent>
       <DevConsole
         get_game_state={() => {

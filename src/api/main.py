@@ -226,6 +226,8 @@ def join_game(id: str, username: str, payload: GameJoinPayload):
     if len(username) == 0 or len(username) > MAX_USERNAME_LENGTH:
         raise HTTPException(403, "Username must be at least 1 character and at most 24 characters.")
     username = username.strip()
+    if g.has_player(username):
+        raise HTTPException(409, "Username taken!")
     if payload.avatar_data_url:
         file_name = f"{id}-{username}.png"
         path = f"{ROOT_PATH}/imgs/{file_name}"

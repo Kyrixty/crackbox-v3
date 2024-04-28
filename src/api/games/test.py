@@ -24,4 +24,8 @@ class MyCustomGame(Game):
         self.config = Config()
     
     def get_game_state(self, username: str | int) -> dict[str, Any]:
-        return {"This is": "a test"}
+        return {
+            "host_connected": self.host_connected,
+            "status": self.status,
+            "players": self.get_player_list(),
+        }

@@ -34,17 +34,15 @@ export type Event = {
 
 export type ImageData = {
   author: string;
-  img_data_url: string;
+  dUri: string;
   title: string;
 };
 
 export type MatchupContext = {
-  imgs: ImageData[];
-  imgVotes: number[];
-
-  setImgs: (i: ImageData[]) => void;
-  setImgVotes: (v: number[]) => void;
-  resetMatchup: () => void;
+  left: ImageData;
+  leftVotes: string[];
+  right: ImageData;
+  rightVotes: string[];
 };
 
 export enum NotifyType {

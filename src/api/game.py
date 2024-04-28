@@ -192,15 +192,19 @@ class Game(Generic[T]):
         self.id = id
         self.gameId = id
     
+    def has_player(self, username: str) -> bool:
+        p_lower = list(self.players.keys())
+        for i, v in enumerate(p_lower):
+            p_lower[i] = v.lower()
+        return username.lower() in p_lower
+
+    
     def join(self, p: Player) -> Result[Player]:
         r = Result()
         if not self.can_join():
             r.Fail("Game is full!")
             return r
-        p_lower = list(self.players.keys())
-        for i, v in enumerate(p_lower):
-            p_lower[i] = v.lower()
-        if p.username.lower() in p_lower:
+        if self.has_player(p.username):
             r.Fail("Username taken")
             return r
         self.players[p.username] = p
@@ -323,7 +327,7 @@ class Game(Generic[T]):
             pm = await self.process_plyr_message(ws, msg, username)
         for msg in pm.msgs_to_send:
             m = pm.pop_next_msg_to_send()
-            await self.send(ws, MessageSchema(type=m.type, value=m.value, author=username))
+            await self.send(ws, MessageSchema(type=m.type, value=m.value, author=username if username == 0 else self.get_player(username).data))
         for msg in pm.msgs_to_broadcast:
             m = pm.pop_next_msg_to_broadcast()
             await self.publish(m.type, m.value, username if username == 0 else self.get_player(username).data)

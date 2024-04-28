@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { Event } from "@lib/champdup";
 
+export enum NotifyType {
+  SUCCESS = "SUCCESS",
+  FAIL = "FAIL",
+  INFO = "INFO",
+}
+
 export type ChampdUpContext = {
   currentEvent: Event | null;
   currentEventData: any;

@@ -8,7 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { DrawPathOptions, drawPaths, PathData, drawDataURIOnCanvas } from "@utils/draw";
+import {
+  DrawPathOptions,
+  drawPaths,
+  PathData,
+  drawDataURIOnCanvas,
+} from "@utils/draw";
 import {
   downloadJson,
   downloadPng,
@@ -34,6 +39,7 @@ import {
 import {
   IconArrowBackUp,
   IconBrush,
+  IconCheck,
   IconPalette,
   IconUpload,
   IconX,
@@ -42,6 +48,8 @@ import { HexAlphaColorPicker } from "react-colorful";
 import { ImageData } from "@lib/champdup";
 import { useDisclosure } from "@mantine/hooks";
 import { useMessenger } from "@lib/context/ws";
+import { showNotification } from "@mantine/notifications";
+import { NotifyType } from "@lib/context/champdup";
 
 type HexColor = React.CSSProperties["color"];
 type Change = ChangeEvent<HTMLInputElement>;
@@ -62,7 +70,7 @@ const SketchPadCounterModal = ({ opened, open, close, imgData }: SPCMProps) => {
         <Title>Counter this champion!</Title>
         <Card bg="white">
           <Card.Section>
-            <Image src={imgData.img_data_url} w={150} />
+            <Image src={imgData.dUri} w={150} />
           </Card.Section>
         </Card>
       </Stack>
@@ -96,15 +104,6 @@ export interface SketchPadProps {
   styles?: React.HTMLAttributes<HTMLCanvasElement>["style"];
   scale?: [number, number];
   controls?: SketchPadControlOptions;
-  pathStream?: PathStream;
-  submitPathData:
-    | ((
-        actionType: DrawAction,
-        dUrl: string,
-        title: string,
-        pathData: PathData[]
-      ) => void)
-    | null;
   gameData?: SketchPadGameData | null;
 }
 
@@ -113,18 +112,14 @@ const defaults: Required<SketchPadProps> = {
   styles: { backgroundColor: "white", boxShadow: "0px 0px 10px 2px black" },
   scale: [1, 1],
   controls: { undo: true, exportJson: true, exportToPng: true, clear: true },
-  pathStream: null,
-  submitPathData: null,
   id: "",
   gameData: null,
 };
 
 export enum MessageType {
   STATE = "STATE",
-  DRAW_READY = "draw-ready",
-  DRAW_CLEAR = "draw-clear",
-  DRAW_UNDO = "draw-undo",
-  DRAW_DATA = "draw-data",
+  IMAGE = "IMAGE",
+  NOTIFY = "NOTIFY",
 }
 
 export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
@@ -133,8 +128,6 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     size,
     styles,
     scale,
-    pathStream,
-    submitPathData,
     controls,
     color,
     lineCap,
@@ -171,10 +164,9 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
 
   useEffect(() => {
-    handleQuietClear();
-    sendJsonMessage({ type: MessageType.DRAW_READY, value: null });
-    draw();
     if (!gameData) return;
+    setPaths([]);
+    setTitle("");
     const drawData = gameData as DrawData;
     const counterData = gameData as CounterData;
     if (drawData.prompt) {
@@ -183,8 +175,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     if (counterData.counter) {
       setCounter(counterData.counter);
     }
-
-  }, []);
+  }, [gameData])
 
   const getContext = useCallback(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -194,12 +185,9 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   const draw = useCallback(() => {
     const ctx = getContext();
-    //ctx.clearRect(0, 0, size, size);
-    const c = () => drawPaths(ctx, paths);
-    if (bgDataURI !== null) {
-      drawDataURIOnCanvas(bgDataURI, ctx, c);
-    }
-  }, [drawOpts, getContext, paths, size, bgDataURI]);
+    ctx.clearRect(0, 0, size, size);
+    drawPaths(ctx, paths);
+  }, [drawOpts, getContext, paths, size]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -210,13 +198,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   useEffect(() => {
     draw();
-  }, [paths, draw]);
-
-  useEffect(() => {
-    if (bgDataURI !== null) {
-      draw();
-    }
-  }, [bgDataURI])
+  }, [paths, draw, undoListener]);
 
   const handleStartPath = (position: [number, number]) => {
     setPaths((existingPaths) => [
@@ -236,11 +218,8 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   };
 
   const handleDrawPath = (position: [number, number]) => {
+    const lastPathIdx = paths.length - 1;
     setPaths((currentPaths) => {
-      if (currentPaths.length === 0) {
-        currentPaths.push({canvasSize: size, opts: drawOpts, path: []});
-      }
-      const lastPathIdx = currentPaths.length - 1;
       const lastPath = currentPaths[lastPathIdx].path;
       lastPath.push(position);
       currentPaths[lastPathIdx].path = lastPath;
@@ -279,30 +258,26 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   const handleDrawEnd = () => {
     setIsDrawing(false);
-    handleSubmit();
+  };
+
+  const handleUndo = () => {
+    setPaths((currentPaths) => {
+      currentPaths.pop();
+      return currentPaths;
+    });
+    setUndoListener(undoListener + 1);
   };
 
   const handleClear = () => {
-    handleQuietClear();
-    sendJsonMessage({ type: MessageType.DRAW_CLEAR, value: null });
-  };
-
-  const handleQuietClear = () => {
+    if (!canvasRef.current) return;
     setPaths(() => []);
-    setBgDataURI(null);
-    const ctx = getContext();
-    ctx.clearRect(0, 0, size, size);
   };
 
   const handleSubmit = () => {
     if (!canvasRef.current) return;
     sendJsonMessage({
-      type: MessageType.DRAW_DATA,
-      value: {
-        dUri: getDataURL(canvasRef.current),
-        title,
-        path: paths[paths.length - 1],
-      },
+      type: MessageType.IMAGE,
+      value: { dUri: getDataURL(canvasRef.current), title },
     });
   };
 
@@ -321,23 +296,18 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
-    if (lastJsonMessage.type === MessageType.DRAW_CLEAR) {
-      handleQuietClear();
-    }
-    if (lastJsonMessage.type === MessageType.DRAW_DATA) {
-      const d = lastJsonMessage.value;
-      setBgDataURI(d.dUri);
-      draw();
-    }
-
-    if (lastJsonMessage.type === MessageType.STATE) {
-      const dUri: string | null = lastJsonMessage.value.cduri;
-      if (dUri === null) {
-        handleQuietClear();
-      } else {
-        setBgDataURI(dUri);
-        draw();
-      }
+    if (lastJsonMessage.type === MessageType.NOTIFY) {
+      showNotification({
+        title: lastJsonMessage.value.type,
+        message: lastJsonMessage.value.message,
+        color: lastJsonMessage.value.type == NotifyType.FAIL ? "red" : "green",
+        icon:
+          lastJsonMessage.value.type == NotifyType.FAIL ? (
+            <IconX />
+          ) : (
+            <IconCheck />
+          ),
+      });
     }
   }, [lastJsonMessage]);
 
@@ -401,7 +371,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
               </Box>
             </Popover.Dropdown>
           </Popover>
-          <ActionIcon>
+          <ActionIcon onClick={handleUndo}>
             <IconArrowBackUp />
           </ActionIcon>
           <ActionIcon color="red" onClick={handleClear}>
