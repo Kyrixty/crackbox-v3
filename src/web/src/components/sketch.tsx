@@ -175,7 +175,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     if (counterData.counter) {
       setCounter(counterData.counter);
     }
-  }, [gameData])
+  }, [gameData]);
 
   const getContext = useCallback(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -313,19 +313,26 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   return (
     <div id="sketch-pad-wrapper" style={{ width: size }}>
-      <Stack id="sketch-pad-controls">
+      <Stack id="sketch-pad-controls" align="center">
+        {counter && (
+          <>
+            <Card w={100} bg="white">
+              <Card.Section>
+                <Image src={counter.dUri} onClick={open} />
+              </Card.Section>
+            </Card>
+            <SketchPadCounterModal
+              opened={opened}
+              close={close}
+              open={open}
+              imgData={counter}
+            />
+          </>
+        )}
         {prompt && (
           <Title style={{ textAlign: "center" }}>
             The the Champion of {prompt}
           </Title>
-        )}
-        {counter && (
-          <SketchPadCounterModal
-            opened={opened}
-            close={close}
-            open={open}
-            imgData={counter}
-          />
         )}
         <Canvas
           ref={canvasRef}
