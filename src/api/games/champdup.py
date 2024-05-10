@@ -439,10 +439,11 @@ class ChampdUp(Game):
         player_names = list(self.players.keys())
         partition = ""
         words = text.split(" ")
+        _sender = str(sender)
         for word in words:
             partition = " ".join([partition, word]).strip()
             for v in sorted(player_names, key=lambda x: len(x)):
-                if v.lower() == sender.lower():
+                if v.lower() == _sender.lower():
                     continue
                 if v.lower() == partition.lower():
                     match = v
@@ -526,7 +527,7 @@ class ChampdUp(Game):
                     pm.add_broadcast(MessageType.MATCHUP_VOTE, {
                         "left": self.matchup_manager.get_matchup().leftVotes,
                         "right": self.matchup_manager.get_matchup().rightVotes,
-                    })
+                    }, 0)
         return pm
 
 import atexit

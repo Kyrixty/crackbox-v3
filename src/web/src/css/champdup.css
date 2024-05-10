@@ -12,3 +12,7 @@
 #lobby-root {
     width: 100vw;
 }
+
+#p-image-candidate {
+    cursor: pointer;
+}

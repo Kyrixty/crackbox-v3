@@ -33,7 +33,7 @@ import { Disconnected } from "@components/disconnected";
 import { CrackboxLogoGrid } from "@components/crackbox";
 import { EventComponent } from "./conditional";
 import { SketchPad } from "@components/sketch";
-import { HostImageCandidate } from "./image";
+import { HostImageCandidate, PlayerVoteController } from "./image";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -150,10 +150,19 @@ const RunningComponent = () => {
   const { currentEventData } = useChampdUpContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
   const [matchup, setMatchup] = useState<MatchupContext | null>(null);
+  const [leftVotes, setLeftVotes] = useState<string[]>([]);
+  const [rightVotes, setRightVotes] = useState<string[]>([]);
 
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.MATCHUP) {
       setMatchup(lastJsonMessage.value);
+      setLeftVotes([]);
+      setRightVotes([]);
+    }
+
+    if (lastJsonMessage.type == MessageType.MATCHUP_VOTE) {
+      setLeftVotes(lastJsonMessage.value.left);
+      setRightVotes(lastJsonMessage.value.right);
     }
   }, [lastJsonMessage]);
 
@@ -178,18 +187,38 @@ const RunningComponent = () => {
       </EventComponent>
       <EventComponent name={[EventNames.FirstVote, EventNames.SecondVote]}>
         <HostComponent>
-          <Conditional condition={matchup !== null}>
+          {matchup !== null && (
             <Group justify="space-around">
-              <HostImageCandidate image={matchup?.left} />
-              <HostImageCandidate image={matchup?.right} />
+              <HostImageCandidate
+                image={matchup.left}
+                votes={leftVotes}
+                totalVotes={
+                  leftVotes.length + rightVotes.length
+                }
+              />
+              <HostImageCandidate
+                image={matchup.right}
+                votes={rightVotes}
+                totalVotes={
+                  leftVotes.length + rightVotes.length
+                }
+              />
             </Group>
-          </Conditional>
+          )}
           <Conditional condition={matchup === null}>
             <Text style={{ textShadow: "2px 2px 1px black" }}>
               Waiting for matchup data..
             </Text>
           </Conditional>
         </HostComponent>
+        <PlayerComponent>
+          {matchup !== null && <PlayerVoteController matchup={matchup} />}
+          {matchup === null && (
+            <Text style={{ textShadow: "2px 2px 1px black" }}>
+              Waiting for matchup data..
+            </Text>
+          )}
+        </PlayerComponent>
       </EventComponent>
     </div>
   );
