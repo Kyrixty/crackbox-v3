@@ -419,7 +419,7 @@ export const LandingPage = () => {
             <Image
               id="logo-name"
               w={250}
-              src={"/imgs/crackbox-logo-name.png"}
+              src={"/imgs/2p1b-header-transparent.gif"}
             />
           )}
         </Group>
