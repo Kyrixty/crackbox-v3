@@ -3,6 +3,8 @@ import { useMessenger } from "@lib/context/ws";
 import { Card, Group, Image, Stack, Text } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
 import { useEffect, useState } from "react";
+import { useUserContext } from "@lib/context/user";
+import { Player } from "@lib/player";
 
 export interface ImageCandidateProps {
   image?: ImageData;
@@ -19,7 +21,7 @@ export const HostImageCandidate = ({
 
   useEffect(() => {
     console.log(votes);
-  }, [votes])
+  }, [votes]);
 
   return (
     <Card shadow="lg" radius="sm" bg="white" w={300}>
@@ -91,25 +93,47 @@ export const PlayerVoteController = ({
   matchup,
 }: PlayerVoteControllerProps) => {
   const [clicked, setClicked] = useState<TARGET>(null);
+  const [canVote, setCanVote] = useState(false);
+  const { username } = useUserContext();
 
-  useEffect(() => setClicked(null), [matchup]);
+  useEffect(() => {
+    setClicked(null);
+    setCanVote(false);
+    if (
+      matchup.left.artists.find((p: Player) => p.username === username) !==
+        undefined ||
+      matchup.right.artists.find((p: Player) => p.username === username) !==
+        undefined
+    ) {
+      setCanVote(false);
+    } else {
+      setCanVote(true);
+    }
+  }, [matchup]);
 
   return (
     <div id="player-vote-controller">
-      <Group justify="space-around">
-        <PlayerImageCandidate
-          image={matchup.left}
-          name="left"
-          clicked={clicked}
-          clickCallback={setClicked}
-        />
-        <PlayerImageCandidate
-          image={matchup.right}
-          name="right"
-          clicked={clicked}
-          clickCallback={setClicked}
-        />
-      </Group>
+      {!canVote && (
+        <Text style={{ textShadow: "2px 2px 1px black" }}>
+          You can't vote on your own matchup!
+        </Text>
+      )}
+      {canVote && (
+        <Group justify="space-around">
+          <PlayerImageCandidate
+            image={matchup.left}
+            name="left"
+            clicked={clicked}
+            clickCallback={setClicked}
+          />
+          <PlayerImageCandidate
+            image={matchup.right}
+            name="right"
+            clicked={clicked}
+            clickCallback={setClicked}
+          />
+        </Group>
+      )}
     </div>
   );
 };

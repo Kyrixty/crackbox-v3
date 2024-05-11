@@ -108,6 +108,15 @@ class Image(BaseModel):
     artists: list[Player]
     prompt: str
 
+class AwardName(str, Enum, metaclass=MetaEnum):
+    DOMINATION = "DOMINATION"
+    ON_FIRE = "ON_FIRE"
+    BRUH = "BRUH"
+
+class Award(BaseModel):
+    name: AwardName
+    bonus: int
+
 class ImageMatchup(BaseModel):
     left: Image
     leftVotes: set[str]
@@ -196,15 +205,16 @@ class DrawManager:
         return ctrImgMap
 
 class CounterManager:
-    def __init__(self, ctr_img_map: dict[str, Image]) -> None:
+    def __init__(self, ctr_img_map: dict[str, Image], player_list: list[Player]) -> None:
         self.ctr_img_map: dict[str, Image] = ctr_img_map
         self.ctrs: dict[str, Image] = {}
+        self.players = player_list
 
     
     def set_ctr_img_map(self, map: dict[str, Image]):
         self.ctr_img_map = map
-        for username in self.ctr_img_map:
-            self.ctrs[username] = Image(title=random.choice(titles), dUri=didnt_draw_data_uri, artists=self.ctr_img_map[username].artists, prompt=random.choice(prompts))
+        for player in self.players:
+            self.ctrs[player.username] = Image(title=random.choice(titles), dUri=didnt_draw_data_uri, artists=[player], prompt=random.choice(prompts))
 
     def get_matchups(self) -> list[ImageMatchup]:
         matchups = []
@@ -247,7 +257,7 @@ class ChampdUp(Game):
         for event_name in RUNNING_EVENTS:
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
         self.draw_manager = DrawManager([])
-        self.ctr_manager = CounterManager({})
+        self.ctr_manager = CounterManager({}, [])
         self.matchup_manager = MatchupManager()
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
     
@@ -271,6 +281,7 @@ class ChampdUp(Game):
             self.draw_manager.reset()
         if event.name in ("C1", "C2"):
             self.ctr_manager.reset()
+            self.ctr_manager.players = self.get_player_list()
             self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
         if event.name in ("V1", "V2"):
             self.matchup_manager.reset()
@@ -331,6 +342,7 @@ class ChampdUp(Game):
             on_fire = not dominated and (llv > 2 * lrv or lrv > 2 * llv)
             D = can_bonus * dominated * 250 * len(self.players)
             F = can_bonus * on_fire * 125 * max(lrv, lrv)
+            B = ((llv + lrv) == 0) * 1
             winner = matchup.left
 
             if llv == lrv:
@@ -353,11 +365,13 @@ class ChampdUp(Game):
                 for artist in matchup.right.artists:
                     self.players[artist.username].points += rp
             
-            awards = []
+            awards: list[Award] = []
             if dominated:
-                awards.append("DOMINATION")
+                awards.append(Award(name=AwardName.DOMINATION, bonus=D))
             if on_fire:
-                awards.append("ON_FIRE")
+                awards.append(Award(name=AwardName.ON_FIRE, bonus=F))
+            if (llv + lrv) == 0:
+                awards.append(Award(name=AwardName.BRUH, bonus=B))
             
             self.matchup_manager.finish_matchup()
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
@@ -624,6 +638,10 @@ class ChampdUp(Game):
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
                 if not self.matchup_manager.has_started() or self.matchup_manager.matchup_finished:
+                    return pm
+                m = self.matchup_manager.get_matchup()
+                artists = [x.username for x in m.left.artists] + [x.username for x in m.right.artists]
+                if username in artists:
                     return pm
                 if msg.value in ("left", "right"):
                     self.matchup_manager.get_matchup().add_vote(username, msg.value)

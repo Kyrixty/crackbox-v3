@@ -1,3 +1,5 @@
+import { Player } from "./player";
+
 export enum MessageType {
   HOST_CONNECT = "HOST_CONNECT",
   HOST_DISCONNECT = "HOST_DISCONNECT",
@@ -34,7 +36,7 @@ export type Event = {
 }
 
 export type ImageData = {
-  author: string;
+  artists: Player[];
   dUri: string;
   title: string;
 };
