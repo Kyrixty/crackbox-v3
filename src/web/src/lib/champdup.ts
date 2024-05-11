@@ -12,7 +12,8 @@ export enum MessageType {
   POLL_VOTE = "POLL_VOTE",
   IMAGE = "IMAGE",
   MATCHUP = "MATCHUP",
-  MATCHUP_VOTE = "MATCHUP_VOTE"
+  MATCHUP_VOTE = "MATCHUP_VOTE",
+  MATCHUP_RESULT = "MATCHUP_RESULT",
 }
 
 export enum EventNames {

@@ -3,6 +3,7 @@ import inspect
 import anyio
 import threading
 import random
+import math
 import os
 
 from game import Game, GenericGameConfig, PublicConfig, MessageSchema, ProcessedMessage, GameStatus, create_threaded_async_action
@@ -27,6 +28,7 @@ DEFAULT_PUBLIC_ATTRS = {
     "enable_private_messages": True,
     "draw_duration": 20 if DEBUG else 180,
     "vote_duration": 10,
+    "awards_duration": 5,
 }
 
 task_threads = []
@@ -84,6 +86,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     IMAGE = "IMAGE"
     MATCHUP = "MATCHUP"
     MATCHUP_VOTE = "MATCHUP_VOTE"
+    MATCHUP_RESULT = "MATCHUP_RESULT"
 
 class NotifyType(str, Enum, metaclass=MetaEnum):
     SUCCESS = "SUCCESS"
@@ -125,15 +128,20 @@ class MatchupManager:
     def __init__(self) -> None:
         self._idx = -1
         self.matchups: list[ImageMatchup] = []
+        self.matchup_finished = False
     
-    def has_not_started(self) -> bool:
-        return self._idx == -1
+    def has_started(self) -> bool:
+        return self._idx != -1
     
     def has_ended(self) -> bool:
         return self._idx >= len(self.matchups)
     
+    def finish_matchup(self) -> None:
+        self.matchup_finished = True
+    
     def next_matchup(self):
         self._idx += 1
+        self.matchup_finished = False
     
     def get_matchup(self):
         return self.matchups[self._idx]
@@ -278,11 +286,85 @@ class ChampdUp(Game):
         if event.name in ("V1", "V2"):
             # Begin handling vote rounds
             await self.iter_vote_round()
-        
+    
+    async def filter_send(self, msg: MessageSchema, whitelist: list[str | int] = [], blacklist: list[str | int] = []):
+        if not whitelist and not blacklist:
+            await self.publish(msg.type, msg.value, msg.author)
+        if whitelist:
+            for username in whitelist:
+                await self.send(self.ws_map[username], msg)
+        else:
+            for username in self.ws_map:
+                if username not in blacklist:
+                    await self.send(self.ws_map[username], msg)
     
     async def iter_vote_round(self):
         if not self.matchup_manager.matchups:
             self.error("No matchups found at vote round. iter_vote_round will likely error, ensure matchup_manager's matchups have been set before iter_vote_round is called!")
+        if self.matchup_manager.has_started() and not self.matchup_manager.matchup_finished:
+            # If the matchup manager has started before we move to the next matchup,
+            # then there must have been a previous matchup that just ended. Broadcast
+            # matchup winner
+            matchup = self.matchup_manager.get_matchup()
+            llv = len(matchup.leftVotes)
+            lrv = len(matchup.rightVotes)
+
+            # Calculate points
+            lp, rp = 0, 0
+            scalar = 1897
+
+            # We want at least (roughly) 50% of players to have voted for a bonus
+            # to be awarded
+            can_bonus = (llv + lrv) > math.floor(len(self.players) / 2)
+            dominated = 0 in (llv, lrv) and (llv, lrv).count(0) == 1
+            on_fire = not dominated and (llv > 2 * lrv or lrv > 2 * llv)
+            D = can_bonus * dominated * 250 * len(self.players)
+            F = can_bonus * on_fire * 125 * max(lrv, lrv)
+            winner = matchup.left
+
+            if llv == lrv:
+                # Because right image countered left image,
+                # left image is given a slight bonus in points
+                lp += scalar * llv + 100
+                rp += scalar * lrv
+                for artist in matchup.left.artists:
+                    self.players[artist.username].points += lp
+                
+                for artist in matchup.right.artists:
+                    self.players[artist.username].points += rp
+            elif llv > lrv:
+                lp += scalar * llv + D + F
+                for artist in matchup.left.artists:
+                    self.players[artist.username].points += lp
+            else:
+                winner = matchup.right
+                rp += scalar * lrv + D + F
+                for artist in matchup.right.artists:
+                    self.players[artist.username].points += rp
+            
+            awards = []
+            if dominated:
+                awards.append("DOMINATION")
+            if on_fire:
+                awards.append("ON_FIRE")
+            
+            self.matchup_manager.finish_matchup()
+            await self.filter_send(MessageSchema(
+                type=MessageType.MATCHUP_RESULT,
+                value={
+                    "winner": winner,
+                    "points": lp if llv >= lrv else rp,
+                    "awards": awards,
+                }
+            ))
+            # Exit early, next pass (after awards have been shown) this block will not be called
+            # as we finished the matchup.
+            ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
+            self.timer.callback = self.iter_vote_round
+            return await self.timer.start(ends)
+            
+
+
         self.matchup_manager.next_matchup()
         if self.matchup_manager.has_ended():
             self.timer.callback = self.iter_game_events
@@ -370,6 +452,15 @@ class ChampdUp(Game):
                     continue
                 if v < 10:
                     errors.append((k, "Value must be at least 10 (seconds)"))
+            if k == "awards_duration":
+                try:
+                    v = int(v)
+                except ValueError:
+                    errors.append((k, "Value must be an integer"))
+                    continue
+                if v < 3:
+                    errors.append((k, "Value must be >= 3"))
+                    continue
             self.config.public[k] = v
         self.max_players = self.get_public_field("max_players")
         return errors

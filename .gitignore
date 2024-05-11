@@ -4,3 +4,4 @@ __pycache__/
 logs/
 *.db
 src/api/imgs/
+.helpful.git.commands
