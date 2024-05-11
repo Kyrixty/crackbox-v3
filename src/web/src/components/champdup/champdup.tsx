@@ -53,8 +53,7 @@ const PlayerCard = ({ p }: { p: Player }) => {
       bg={p.color}
       key={p.username}
       w={dm}
-      shadow="lg"
-      style={{ boxShadow: "1px 1px 12px 4px black" }}
+      style={{ boxShadow: `1px 1px 12px 4px ${p.color}` }}
     >
       <Card.Section>
         <Image
@@ -117,9 +116,9 @@ const Lobby = () => {
                 <>
                   {im ? (
                     <Avatar
-                      style={{ boxShadow: "1px 1px 12px 4px black" }}
+                      style={{ boxShadow: `1px 1px 12px 4px ${p.color}`, backgroundColor: p.color }}
                       size="xl"
-                      src={p.avatar_data_url}
+                      src={p.avatar_data_url ? p.avatar_data_url : "/imgs/crackbox-logo-2.png"}
                     />
                   ) : (
                     <PlayerCard p={p} />
@@ -150,12 +149,14 @@ const RunningComponent = () => {
   const { currentEventData } = useChampdUpContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
   const [matchup, setMatchup] = useState<MatchupContext | null>(null);
+  const [matchupEnds, setMatchupEnds] = useState<Date | null>(null);
   const [leftVotes, setLeftVotes] = useState<string[]>([]);
   const [rightVotes, setRightVotes] = useState<string[]>([]);
 
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.MATCHUP) {
-      setMatchup(lastJsonMessage.value);
+      setMatchupEnds(new Date(lastJsonMessage.value.ends));
+      setMatchup(lastJsonMessage.value.matchup);
       setLeftVotes([]);
       setRightVotes([]);
     }
@@ -192,16 +193,12 @@ const RunningComponent = () => {
               <HostImageCandidate
                 image={matchup.left}
                 votes={leftVotes}
-                totalVotes={
-                  leftVotes.length + rightVotes.length
-                }
+                totalVotes={leftVotes.length + rightVotes.length}
               />
               <HostImageCandidate
                 image={matchup.right}
                 votes={rightVotes}
-                totalVotes={
-                  leftVotes.length + rightVotes.length
-                }
+                totalVotes={leftVotes.length + rightVotes.length}
               />
             </Group>
           )}

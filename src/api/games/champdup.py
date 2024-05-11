@@ -21,7 +21,7 @@ from player import Player
 
 DEFAULT_PUBLIC_ATTRS = {
     "max_players": 10,
-    "bonus_round_enabled": True,
+    "bonus_round_enabled": False,
     "polls_enabled": True,
     "poll_duration": 10,
     "host_only_polls": False,
@@ -288,6 +288,17 @@ class ChampdUp(Game):
             await self.iter_vote_round()
     
     async def filter_send(self, msg: MessageSchema, whitelist: list[str | int] = [], blacklist: list[str | int] = []):
+        '''Filters who to send a message to.
+        
+        If `whitelist` and `blacklist` are empty lists,
+        the message is broadcast to all clients. Otherwise:
+        
+        If `whitelist` is specified, broadcast only to
+        whoever is in the whitelist. Ignore the blacklist.
+        
+        If `blacklist` is specified (and `whitelist` isn't [racist!!!!1111!]),
+        broadcast only to whoever isn't in the blacklist'''
+
         if not whitelist and not blacklist:
             await self.publish(msg.type, msg.value, msg.author)
         if whitelist:
@@ -349,35 +360,34 @@ class ChampdUp(Game):
                 awards.append("ON_FIRE")
             
             self.matchup_manager.finish_matchup()
+            ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
             await self.filter_send(MessageSchema(
                 type=MessageType.MATCHUP_RESULT,
                 value={
                     "winner": winner,
                     "points": lp if llv >= lrv else rp,
                     "awards": awards,
-                }
+                    "ends": ends.isoformat(),
+                },
+                author=0,
             ))
             # Exit early, next pass (after awards have been shown) this block will not be called
             # as we finished the matchup.
-            ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
             self.timer.callback = self.iter_vote_round
             return await self.timer.start(ends)
-            
 
 
         self.matchup_manager.next_matchup()
         if self.matchup_manager.has_ended():
             self.timer.callback = self.iter_game_events
             return await self.iter_game_events()
-        for username in self.ws_map:
-            ws = self.ws_map[username]
-            await self.send(ws, MessageSchema(
-                type=MessageType.MATCHUP,
-                value=self.matchup_manager.get_matchup(),
-                author=0,
-            ))
         self.timer.callback = self.iter_vote_round
         ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("vote_duration")))
+        await self.filter_send(MessageSchema(
+            type=MessageType.MATCHUP,
+            value={"matchup": self.matchup_manager.get_matchup(), "ends": ends},
+            author=0,
+        ))
         await self.timer.start(ends)
     
     def get_current_event(self) -> Event:
@@ -398,7 +408,7 @@ class ChampdUp(Game):
                     "counter": self.ctr_manager.ctr_img_map[username]
                 }
         if self.get_current_event().name in ("V1", "V2"):
-            if not self.matchup_manager.has_not_started():
+            if self.matchup_manager.has_started():
                 event_data = {
                     "matchup": self.matchup_manager.get_matchup()
                 }
@@ -613,6 +623,8 @@ class ChampdUp(Game):
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
+                if not self.matchup_manager.has_started() or self.matchup_manager.matchup_finished:
+                    return pm
                 if msg.value in ("left", "right"):
                     self.matchup_manager.get_matchup().add_vote(username, msg.value)
                     pm.add_broadcast(MessageType.MATCHUP_VOTE, {
