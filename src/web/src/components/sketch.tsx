@@ -389,6 +389,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
         </Group>
         <TextInput
           placeholder="Champion Title"
+          value={title}
           onChange={(e: Change) => setTitle(e.currentTarget.value)}
         />
         <Button fullWidth onClick={handleSubmit} leftSection={<IconUpload />}>

@@ -170,6 +170,10 @@ with open(f"{dirname}/champdup-default-titles.txt", mode="r") as f:
 with open(f"{dirname}/champdup-didnt-draw.txt", mode="r") as f:
     didnt_draw_data_uri = f.read()
 
+def get_random_title(username: str) -> str:
+    t = random.choice(titles).replace("$USERNAME$", username)
+    return t
+
 class DrawManager:
     def __init__(self, player_list: list[Player]) -> None:
         self.images: dict[str, Image] = {}
@@ -191,7 +195,7 @@ class DrawManager:
             prompt = random.choice(self.prompt_pool)
             self.prompt_pool.remove(prompt)
             self.prompts[player.username] = prompt
-            self.images[player.username] = Image(title=random.choice(titles), dUri=didnt_draw_data_uri, artists=[player], prompt=prompt)
+            self.images[player.username] = Image(title=get_random_title(player.username), dUri=didnt_draw_data_uri, artists=[player], prompt=prompt)
 
     def create_counters(self) -> dict[str, Image]:
         plrs = self.players
@@ -209,17 +213,18 @@ class CounterManager:
         self.ctr_img_map: dict[str, Image] = ctr_img_map
         self.ctrs: dict[str, Image] = {}
         self.players = player_list
-
     
     def set_ctr_img_map(self, map: dict[str, Image]):
         self.ctr_img_map = map
         for player in self.players:
-            self.ctrs[player.username] = Image(title=random.choice(titles), dUri=didnt_draw_data_uri, artists=[player], prompt=random.choice(prompts))
+            self.ctrs[player.username] = Image(title=get_random_title(player.username), dUri=didnt_draw_data_uri, artists=[player], prompt=random.choice(prompts))
 
     def get_matchups(self) -> list[ImageMatchup]:
+        '''Returns a shuffled version of the matchups.'''
         matchups = []
         for og, ctr in zip(self.ctr_img_map.values(), self.ctrs.values()):
             matchups.append(ImageMatchup(left=og, right=ctr, leftVotes=set(), rightVotes=set()))
+        random.shuffle(matchups)
         return matchups
     
     def set_ctr(self, username: str, img: Image):

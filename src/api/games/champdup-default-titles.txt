@@ -6,3 +6,6 @@ RT recommends putting a title in
 Don't forget to put in a title
 Man I wonder what the title is
 Oh I have to enter a title?
+$USERNAME$ failed the quick-time event
+$USERNAME$ doesn't need a title
+$USERNAME$ is retarded
