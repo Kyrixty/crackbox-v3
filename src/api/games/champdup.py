@@ -361,8 +361,8 @@ class ChampdUp(Game):
             if llv == lrv:
                 # Because right image countered left image,
                 # left image is given a slight bonus in points
-                lp += scalar * llv + 100
-                rp += scalar * lrv
+                lp += scalar * llv + 100 + B
+                rp += scalar * lrv + B
                 for artist in matchup.left.artists:
                     self.players[artist.username].points += lp
                 

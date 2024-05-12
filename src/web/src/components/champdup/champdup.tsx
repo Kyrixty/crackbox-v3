@@ -93,7 +93,7 @@ const PlayerCard = ({
       <Card.Section p={10}>
         <Group justify="center">
           <Title
-            order={tablet ? 5 : 3}
+            order={dm === AVATAR_SMALL ? 5 : 3}
             style={{
               color: "white",
               textShadow: "2px 2px 1px black",
@@ -322,19 +322,19 @@ const RunningComponent = () => {
                     <LeaderboardCard
                       p={leaderboard[0]}
                       colorOverride="#FFD700"
-                      forceSmall
+                      forceSmall={leaderboard.length > 3}
                     />
                   </Group>
                   <SimpleGrid cols={2}>
                     <LeaderboardCard
                       p={leaderboard[1]}
                       colorOverride="#C0C0C0"
-                      forceSmall
+                      forceSmall={leaderboard.length > 3}
                     />
                     <LeaderboardCard
                       p={leaderboard[2]}
                       colorOverride="#CD7F32"
-                      forceSmall
+                      forceSmall={leaderboard.length > 3}
                     />
                   </SimpleGrid>
                   {leaderboard.length > 3 && (
@@ -357,7 +357,7 @@ const RunningComponent = () => {
                     </ScrollArea>
                   )}
                 </Stack>
-                <div style={{ height: 575, display: "flex" }}>
+                <div style={{ height: 600, display: "flex" }}>
                   <Carousel
                     withControls={false}
                     orientation="vertical"
