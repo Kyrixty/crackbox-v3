@@ -648,13 +648,19 @@ class ChampdUp(Game):
         if self.get_current_event().name in ("D1", "D2"):
             if msg.type == MessageType.IMAGE:
                 # User submitted draw image
-                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]):
-                    self.draw_manager.add_image(username, Image(title=msg.value["title"], dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str:
+                    title = msg.value["title"]
+                    if not title:
+                        title = get_random_title(username)
+                    self.draw_manager.add_image(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
         if self.get_current_event().name in ("C1", "C2"):
             if msg.type == MessageType.IMAGE:
-                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]):
-                    self.ctr_manager.set_ctr(username, Image(title=msg.value["title"], dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.ctr_manager.ctr_img_map[username].prompt))
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str:
+                    title = msg.value["title"]
+                    if not title:
+                        title = get_random_title(username)
+                    self.ctr_manager.set_ctr(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.ctr_manager.ctr_img_map[username].prompt))
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
