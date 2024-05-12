@@ -21,8 +21,10 @@ import {
 } from "@mantine/core";
 import { isDesktop, isMobile, isTablet } from "@utils/device";
 import {
+  AwardNames,
   EventNames,
   ImageData,
+  LeaderboardImage,
   MatchupContext,
   MessageType,
 } from "@lib/champdup";
@@ -48,6 +50,7 @@ import { HostImageCandidate, PlayerVoteController } from "./image";
 import { Carousel } from "@mantine/carousel";
 import { darken } from "@mantine/core";
 import Autoplay from "embla-carousel-autoplay";
+import { IconUfo } from "@tabler/icons-react";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -210,7 +213,7 @@ const RunningComponent = () => {
   const [leftVotes, setLeftVotes] = useState<string[]>([]);
   const [rightVotes, setRightVotes] = useState<string[]>([]);
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
-  const [leaderboardImgs, setLeaderboardImgs] = useState<ImageData[]>([]);
+  const [leaderboardImgs, setLeaderboardImgs] = useState<LeaderboardImage[]>([]);
   const { setBg, setClassName } = useGameStyleContext();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
@@ -239,11 +242,7 @@ const RunningComponent = () => {
     if (currentEventData === null || currentEventData === undefined) return;
     if (currentEventData.leaderboard && currentEventData.leaderboard_images) {
       setLeaderboard(currentEventData.leaderboard);
-      setLeaderboardImgs(
-        currentEventData.leaderboard_images.map(
-          (i: { image: ImageData }) => i.image
-        )
-      );
+      setLeaderboardImgs(currentEventData.leaderboard_images);
     }
   }, [currentEventData]);
 
@@ -251,7 +250,7 @@ const RunningComponent = () => {
     if (currentEvent === null) return;
     if (currentEvent.name === EventNames.Leaderboard) {
       setBg(
-        "white radial-gradient(#cbcbcb 20%, transparent 20%) 0px 0px/50px 50px round"
+        "white radial-gradient(#cbcbcb 40%, transparent 40%) 0px 0px/50px 50px round"
       );
       setClassName("translate-background-upper-right");
     } else {
@@ -357,7 +356,7 @@ const RunningComponent = () => {
                     </ScrollArea>
                   )}
                 </Stack>
-                <div style={{ height: 600, display: "flex" }}>
+                <div style={{ height: 700, display: "flex" }}>
                   <Carousel
                     withControls={false}
                     orientation="vertical"
@@ -375,11 +374,11 @@ const RunningComponent = () => {
                             bg="black"
                             style={{ transform: "skewX(-10deg)" }}
                           >
-                            <Title order={3}>{img.title}</Title>
+                            <Title order={3}>{img.image.title}</Title>
                           </Box>
-                          <Image src={img.dUri} />
+                          <Image src={img.image.dUri} />
                           <Group>
-                            {img.artists.map((p) => (
+                            {img.image.artists.map((p) => (
                               <Group>
                                 <Avatar
                                   size="lg"
@@ -399,6 +398,10 @@ const RunningComponent = () => {
                               </Group>
                             ))}
                           </Group>
+                          <Group>{img.awards.map((award) => {
+                            if (award.name !== AwardNames.DOMINATION) return <></>;
+                            return <Image src="/imgs/domination-icon-big.gif" w={50} />;
+                          })}</Group>
                         </Stack>
                       </Carousel.Slide>
                     ))}

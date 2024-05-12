@@ -30,6 +30,7 @@
     "@tiptap/starter-kit": "^2.2.4",
     "axios": "^1.6.8",
     "dayjs": "^1.11.10",
+    "embla-carousel-auto-height": "^8.0.4",
     "embla-carousel-autoplay": "^7.1.0",
     "embla-carousel-react": "^7.1.0",
     "localforage": "^1.10.0",

@@ -28,10 +28,12 @@
 
 @keyframes move_bg {
     0% {
+        transform: rotate(10deg) scale(2);
         background-position: 0 0;
     }
 
     100% {
+        transform: rotate(10deg) scale(2);
         background-position: 50px -50px;
     }
 }

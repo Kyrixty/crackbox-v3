@@ -41,6 +41,22 @@ export type ImageData = {
   title: string;
 };
 
+export enum AwardNames {
+  DOMINATION = "DOMINATION",
+  ON_FIRE = "ON_FIRE",
+  BRUH = "BRUH",
+}
+
+export type Award = {
+  name: AwardNames;
+  bonus: number;
+}
+
+export type LeaderboardImage = {
+  image: ImageData;
+  awards: Award[];
+}
+
 export type MatchupContext = {
   left: ImageData;
   leftVotes: string[];
