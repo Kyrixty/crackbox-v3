@@ -382,7 +382,7 @@ const RunningComponent = () => {
                             {img.artists.map((p) => (
                               <Group>
                                 <Avatar
-                                  size="md"
+                                  size="lg"
                                   src={
                                     p.avatar_data_url
                                       ? p.avatar_data_url
