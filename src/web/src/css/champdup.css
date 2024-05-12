@@ -16,3 +16,22 @@
 #p-image-candidate {
     cursor: pointer;
 }
+
+#leaderboard-root {
+    width: 100vw;
+    color: white;
+}
+
+.translate-background-upper-right {
+    animation: move_bg 2s linear infinite;
+}
+
+@keyframes move_bg {
+    0% {
+        background-position: 0 0;
+    }
+
+    100% {
+        background-position: 50px -50px;
+    }
+}

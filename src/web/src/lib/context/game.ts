@@ -79,11 +79,15 @@ export const useGameContext = create<GameContext>()(
 );
 
 export type GameStyleContext = {
-  bgImage: string;
-  setBgImage: (s: string) => void;
+  bg: string;
+  className: string;
+  setBg: (s: string) => void;
+  setClassName: (s: string) => void;
 };
 
 export const useGameStyleContext = create<GameStyleContext>()((set) => ({
-  bgImage: "",
-  setBgImage: (s: string) => set(() => ({ bgImage: s })),
+  bg: "",
+  className: "",
+  setBg: (s: string) => set(() => ({bg: s})),
+  setClassName: (s: string) => set(() => ({ className: s })),
 }));

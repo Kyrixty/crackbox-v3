@@ -408,8 +408,9 @@ class Game(Generic[T]):
         )
         self.log(f"Player '{player.username}' has left")
     
-    def kill(self) -> None:
-        ...
+    async def kill(self) -> None:
+        self.status = GameStatus.STOPPED
+        await self.publish(DefaultMessageTypes.STATUS, value=self.status, author=0)
     
 if __name__ == "__main__":
     # Basic join/leave tests

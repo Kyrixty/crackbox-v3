@@ -1,6 +1,6 @@
 import { ImageData, MatchupContext } from "@lib/champdup";
 import { useMessenger } from "@lib/context/ws";
-import { Card, Group, Image, Stack, Text } from "@mantine/core";
+import { Card, Group, Image, SimpleGrid, Stack, Text } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
 import { useEffect, useState } from "react";
 import { useUserContext } from "@lib/context/user";
@@ -119,7 +119,7 @@ export const PlayerVoteController = ({
         </Text>
       )}
       {canVote && (
-        <Group justify="space-around">
+        <SimpleGrid cols={2}>
           <PlayerImageCandidate
             image={matchup.left}
             name="left"
@@ -132,7 +132,7 @@ export const PlayerVoteController = ({
             clicked={clicked}
             clickCallback={setClicked}
           />
-        </Group>
+        </SimpleGrid>
       )}
     </div>
   );

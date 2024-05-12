@@ -16,12 +16,14 @@ export const Conditional = (p: GenericCondtionalProps) => {
 
 export const HostComponent = (p: ConditionalProps) => {
   const { isHost } = useUserContext();
-  return <Conditional condition={isHost} children={p.children} />;
+  if (!isHost) return <></>;
+  return <>{p.children}</>;
 };
 
 export const PlayerComponent = (p: ConditionalProps) => {
   const { isHost } = useUserContext();
-  return <Conditional condition={!isHost} children={p.children} />;
+  if (isHost) return <></>;
+  return <>{p.children}</>;
 };
 
 interface StatusCompProps extends ConditionalProps {

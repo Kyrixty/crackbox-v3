@@ -18,11 +18,16 @@ export const GamePage = () => {
   const { gameId, setPlayers, setLastPlayer, setStatus, setHostConnected } =
     useGameContext();
   const { isHost, ticket } = useUserContext();
-  const { bgImage } = useGameStyleContext();
+  const { bg, className } = useGameStyleContext();
 
-  const style: React.CSSProperties = bgImage
-    ? { backgroundImage: `url('${bgImage}')` }
-    : {};
+  const style: React.CSSProperties = {
+        background: bg,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+      }
 
   // : RESOLVERS
 
@@ -54,7 +59,9 @@ export const GamePage = () => {
       reconnectAttempts: 10,
       reconnectInterval: (attempts: number) => {
         const delay = 5000;
-        console.warn(`Connection lost, attempting to reconnect in ${delay/1000} seconds`)
+        console.warn(
+          `Connection lost, attempting to reconnect in ${delay / 1000} seconds`
+        );
         return delay;
       },
     });
@@ -77,6 +84,10 @@ export const GamePage = () => {
         g.setPing(lastJsonMessage.ping);
       }
 
+      if (lastJsonMessage.type == DefaultMessageType.STATUS) {
+        setStatus(lastJsonMessage.value);
+      }
+
       if (lastJsonMessage.type == DefaultMessageType.STATE) {
         setHostConnected(lastJsonMessage.value.host_connected);
         setStatus(lastJsonMessage.value.status);
@@ -96,7 +107,7 @@ export const GamePage = () => {
 
   return (
     <div id="game-page-root">
-      <div id="game-page-bg" style={style}></div>
+      <div className={className} id="game-page-bg" style={style}></div>
       {RESOLVE_PROPER_GAME()}
     </div>
   );

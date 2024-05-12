@@ -237,6 +237,10 @@ class Event(BaseModel):
     def is_active(self) -> bool:
         return datetime.datetime.fromisoformat(self.ends) > datetime.datetime.now()
 
+class LeaderboardImage(BaseModel):
+    image: Image
+    awards: list[Award]
+
 RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B", "L"]
 
 # Note: technically all of the events have timers attached but vote events
@@ -259,6 +263,8 @@ class ChampdUp(Game):
         self.draw_manager = DrawManager([])
         self.ctr_manager = CounterManager({}, [])
         self.matchup_manager = MatchupManager()
+        self.leaderboard: list[Player] = []
+        self.leaderboard_images: list[LeaderboardImage] = []
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
     
     
@@ -276,6 +282,8 @@ class ChampdUp(Game):
         self.debug(f"Processing {event.name}..")
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
             return await self.iter_game_events()
+        if event.name == "L":
+            self.leaderboard = sorted(self.get_player_list(), key=lambda p: p.points, reverse=True)
         if event.name in ("D1", "D2"):
             self.draw_manager.players = self.get_player_list()
             self.draw_manager.reset()
@@ -343,7 +351,7 @@ class ChampdUp(Game):
             D = can_bonus * dominated * 250 * len(self.players)
             F = can_bonus * on_fire * 125 * max(lrv, lrv)
             B = ((llv + lrv) == 0) * 1
-            winner = matchup.left
+            winner: Image = matchup.left
 
             if llv == lrv:
                 # Because right image countered left image,
@@ -374,6 +382,7 @@ class ChampdUp(Game):
                 awards.append(Award(name=AwardName.BRUH, bonus=B))
             
             self.matchup_manager.finish_matchup()
+            self.leaderboard_images.append(LeaderboardImage(image=winner, awards=awards))
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
             await self.filter_send(MessageSchema(
                 type=MessageType.MATCHUP_RESULT,
@@ -426,6 +435,11 @@ class ChampdUp(Game):
                 event_data = {
                     "matchup": self.matchup_manager.get_matchup()
                 }
+        if self.get_current_event().name == "L":
+            event_data = {
+                "leaderboard": self.leaderboard,
+                "leaderboard_images": self.leaderboard_images,
+            }
         return {
             "host_connected": self.host_connected,
             "status": self.status,
@@ -602,6 +616,8 @@ class ChampdUp(Game):
             return pm
         if msg.type == MessageType.CHAT:
             if self.validate_chat_msg(msg):
+                if msg.value.strip() == "/kill":
+                    await self.kill()
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
                 pm.add_broadcast(msg.type, msg.value, 0)

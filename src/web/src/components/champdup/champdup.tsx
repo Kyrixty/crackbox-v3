@@ -1,21 +1,32 @@
-import { GameStatus, useGameContext } from "@lib/context/game";
+import {
+  GameStatus,
+  useGameContext,
+  useGameStyleContext,
+} from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
 import {
   Avatar,
+  Box,
   Button,
   Card,
   Grid,
   Group,
   Image,
+  ScrollArea,
   SimpleGrid,
   Stack,
   Text,
   Title,
 } from "@mantine/core";
 import { isDesktop, isMobile, isTablet } from "@utils/device";
-import { EventNames, MatchupContext, MessageType } from "@lib/champdup";
-import { useEffect, useState } from "react";
+import {
+  EventNames,
+  ImageData,
+  MatchupContext,
+  MessageType,
+} from "@lib/champdup";
+import { useEffect, useRef, useState } from "react";
 import "@/css/champdup.css";
 import { ChatDrawer } from "../chat";
 import { Poll } from "../poll";
@@ -34,26 +45,42 @@ import { CrackboxLogoGrid } from "@components/crackbox";
 import { EventComponent } from "./conditional";
 import { SketchPad } from "@components/sketch";
 import { HostImageCandidate, PlayerVoteController } from "./image";
+import { Carousel } from "@mantine/carousel";
+import { darken } from "@mantine/core";
+import Autoplay from "embla-carousel-autoplay";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
 
-const PlayerCard = ({ p }: { p: Player }) => {
+const PlayerCard = ({
+  p,
+  colorOverride,
+  forceSmall,
+}: {
+  p: Player;
+  colorOverride?: string | undefined;
+  forceSmall?: boolean | undefined;
+}) => {
   const { players } = useGameContext();
   const imgSrc = p.avatar_data_url
     ? p.avatar_data_url
     : "/imgs/crackbox-logo-2.png";
   const tablet = isTablet();
   const desktop = isDesktop();
-  const dm = players.length > 6 || tablet ? AVATAR_SMALL : AVATAR_LARGE;
+  const dm =
+    forceSmall || players.length > 6 || tablet ? AVATAR_SMALL : AVATAR_LARGE;
 
   return (
     <Card
       className="player-card"
-      bg={p.color}
+      bg={colorOverride ? colorOverride : p.color}
       key={p.username}
       w={dm}
-      style={{ boxShadow: `1px 1px 12px 4px ${p.color}` }}
+      style={{
+        boxShadow: `1px 1px 12px 4px ${
+          colorOverride ? colorOverride : p.color
+        }`,
+      }}
     >
       <Card.Section>
         <Image
@@ -116,9 +143,16 @@ const Lobby = () => {
                 <>
                   {im ? (
                     <Avatar
-                      style={{ boxShadow: `1px 1px 12px 4px ${p.color}`, backgroundColor: p.color }}
+                      style={{
+                        boxShadow: `1px 1px 12px 4px ${p.color}`,
+                        backgroundColor: p.color,
+                      }}
                       size="xl"
-                      src={p.avatar_data_url ? p.avatar_data_url : "/imgs/crackbox-logo-2.png"}
+                      src={
+                        p.avatar_data_url
+                          ? p.avatar_data_url
+                          : "/imgs/crackbox-logo-2.png"
+                      }
                     />
                   ) : (
                     <PlayerCard p={p} />
@@ -145,13 +179,40 @@ const Lobby = () => {
   );
 };
 
+const LeaderboardCard = ({
+  p,
+  colorOverride,
+  forceSmall,
+}: {
+  p: Player;
+  colorOverride?: string | undefined;
+  forceSmall?: boolean | undefined;
+}) => {
+  return (
+    <Stack>
+      <PlayerCard p={p} colorOverride={colorOverride} forceSmall={forceSmall} />
+      <Box p={5} bg={colorOverride ? colorOverride : p.color}>
+        <Group justify="space-around">
+          <Title order={4} style={{ color: "black" }}>
+            ${p.points}
+          </Title>
+        </Group>
+      </Box>
+    </Stack>
+  );
+};
+
 const RunningComponent = () => {
-  const { currentEventData } = useChampdUpContext();
+  const { currentEvent, currentEventData } = useChampdUpContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
   const [matchup, setMatchup] = useState<MatchupContext | null>(null);
   const [matchupEnds, setMatchupEnds] = useState<Date | null>(null);
   const [leftVotes, setLeftVotes] = useState<string[]>([]);
   const [rightVotes, setRightVotes] = useState<string[]>([]);
+  const [leaderboard, setLeaderboard] = useState<Player[]>([]);
+  const [leaderboardImgs, setLeaderboardImgs] = useState<ImageData[]>([]);
+  const { setBg, setClassName } = useGameStyleContext();
+  const autoplay = useRef(Autoplay({ delay: 4000 }));
 
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.MATCHUP) {
@@ -166,6 +227,31 @@ const RunningComponent = () => {
       setRightVotes(lastJsonMessage.value.right);
     }
   }, [lastJsonMessage]);
+
+  useEffect(() => {
+    if (currentEventData === null || currentEventData === undefined) return;
+    if (currentEventData.leaderboard && currentEventData.leaderboard_images) {
+      setLeaderboard(currentEventData.leaderboard);
+      setLeaderboardImgs(
+        currentEventData.leaderboard_images.map(
+          (i: { image: ImageData }) => i.image
+        )
+      );
+    }
+  }, [currentEventData]);
+
+  useEffect(() => {
+    if (currentEvent === null) return;
+    if (currentEvent.name === EventNames.Leaderboard) {
+      setBg(
+        "white radial-gradient(#cbcbcb 20%, transparent 20%) 0px 0px/50px 50px round"
+      );
+      setClassName("translate-background-upper-right");
+    } else {
+      setBg("black");
+      setClassName("");
+    }
+  }, [currentEvent]);
 
   return (
     <div id="running-root" className="centered">
@@ -190,16 +276,18 @@ const RunningComponent = () => {
         <HostComponent>
           {matchup !== null && (
             <Group justify="space-around">
-              <HostImageCandidate
-                image={matchup.left}
-                votes={leftVotes}
-                totalVotes={leftVotes.length + rightVotes.length}
-              />
-              <HostImageCandidate
-                image={matchup.right}
-                votes={rightVotes}
-                totalVotes={leftVotes.length + rightVotes.length}
-              />
+              <SimpleGrid cols={2}>
+                <HostImageCandidate
+                  image={matchup.left}
+                  votes={leftVotes}
+                  totalVotes={leftVotes.length + rightVotes.length}
+                />
+                <HostImageCandidate
+                  image={matchup.right}
+                  votes={rightVotes}
+                  totalVotes={leftVotes.length + rightVotes.length}
+                />
+              </SimpleGrid>
             </Group>
           )}
           <Conditional condition={matchup === null}>
@@ -215,6 +303,110 @@ const RunningComponent = () => {
               Waiting for matchup data..
             </Text>
           )}
+        </PlayerComponent>
+      </EventComponent>
+      <EventComponent name={[EventNames.Leaderboard]}>
+        <HostComponent>
+          <div id="leaderboard-root">
+            {leaderboard.length && leaderboardImgs.length && (
+              <Group justify="space-around">
+                <Stack align="center">
+                  <Group justify="space-around">
+                    <LeaderboardCard
+                      p={leaderboard[0]}
+                      colorOverride="#FFD700"
+                      forceSmall
+                    />
+                  </Group>
+                  <SimpleGrid cols={2}>
+                    <LeaderboardCard
+                      p={leaderboard[1]}
+                      colorOverride="#C0C0C0"
+                      forceSmall
+                    />
+                    <LeaderboardCard
+                      p={leaderboard[2]}
+                      colorOverride="#CD7F32"
+                      forceSmall
+                    />
+                  </SimpleGrid>
+                  {leaderboard.length > 3 && (
+                    <ScrollArea w="100%" offsetScrollbars>
+                      {leaderboard.slice(3).map((p) => (
+                        <Box bg={`linear-gradient(0deg, ${darken(p.color, 0.5)} 30%, ${p.color}`} p={5}>
+                          <Group>
+                            <Avatar
+                              size="lg"
+                              src={
+                                p.avatar_data_url
+                                  ? p.avatar_data_url
+                                  : "/imgs/crackbox-logo-2.png"
+                              }
+                            />
+                            <Text>${p.points}</Text>
+                          </Group>
+                        </Box>
+                      ))}
+                    </ScrollArea>
+                  )}
+                </Stack>
+                <div style={{ height: 575, display: "flex" }}>
+                  <Carousel
+                    withControls={false}
+                    orientation="vertical"
+                    slideSize="100%"
+                    height="100%"
+                    style={{ flex: 1 }}
+                    plugins={[autoplay.current]}
+                    onMouseLeave={() => autoplay.current.play()}
+                  >
+                    {leaderboardImgs.map((img) => (
+                      <Carousel.Slide>
+                        <Stack align="center">
+                          <Box
+                            p={20}
+                            bg="black"
+                            style={{ transform: "skewX(-10deg)" }}
+                          >
+                            <Title order={3}>{img.title}</Title>
+                          </Box>
+                          <Image src={img.dUri} />
+                          <Group>
+                            {img.artists.map((p) => (
+                              <Group>
+                                <Avatar
+                                  size="md"
+                                  src={
+                                    p.avatar_data_url
+                                      ? p.avatar_data_url
+                                      : "/imgs/crackbox-logo-2.png"
+                                  }
+                                  style={{
+                                    backgroundColor: p.color,
+                                    boxShadow: `1px 1px 12px 4px ${p.color}`,
+                                  }}
+                                />
+                                <Title order={4} style={{ color: "black" }}>
+                                  {p.username}
+                                </Title>
+                              </Group>
+                            ))}
+                          </Group>
+                        </Stack>
+                      </Carousel.Slide>
+                    ))}
+                  </Carousel>
+                </div>
+              </Group>
+            )}
+          </div>
+        </HostComponent>
+        <PlayerComponent>
+          <Box p={20} bg="black">
+            <Title style={{ color: "white", textAlign: "center" }} order={2}>
+              View the leaderboard on the host's screen!
+            </Title>
+          </Box>
         </PlayerComponent>
       </EventComponent>
     </div>

@@ -171,9 +171,11 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     const counterData = gameData as CounterData;
     if (drawData.prompt) {
       setPrompt(drawData.prompt);
+      setCounter(null);
     }
     if (counterData.counter) {
       setCounter(counterData.counter);
+      setPrompt("");
     }
   }, [gameData]);
 
@@ -331,7 +333,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
         )}
         {prompt && (
           <Title style={{ textAlign: "center" }}>
-            The the Champion of {prompt}
+            Draw the Champion of {prompt}
           </Title>
         )}
         <Canvas
