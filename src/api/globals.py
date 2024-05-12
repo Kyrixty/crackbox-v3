@@ -11,7 +11,7 @@ ENV_PATH = os.path.join(ROOT_PATH, ".env")
 CONFIG_PATH = os.path.join(ROOT_PATH, "config.json")
 CONFIG_TEST_PATH = os.path.join(ROOT_PATH, "config.test.json") # Config for test.py
 
-MAX_USERNAME_LENGTH = 24
+MAX_USERNAME_LENGTH = 18
 
 #Misc
 SIMULATE_LAG_MAX = 120
