@@ -215,6 +215,13 @@ const RunningComponent = () => {
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
   useEffect(() => {
+    if (lastJsonMessage.type == MessageType.STATE) {
+      if (lastJsonMessage.value.matchup) {
+        setMatchup(lastJsonMessage.value.matchup);
+        setLeftVotes(lastJsonMessage.value.matchup.leftVotes);
+        setRightVotes(lastJsonMessage.value.matchup.rightVotes);
+      }
+    }
     if (lastJsonMessage.type == MessageType.MATCHUP) {
       setMatchupEnds(new Date(lastJsonMessage.value.ends));
       setMatchup(lastJsonMessage.value.matchup);
