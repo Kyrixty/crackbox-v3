@@ -400,7 +400,7 @@ const RunningComponent = () => {
                           </Group>
                           <Group>{img.awards.map((award) => {
                             if (award.name !== AwardNames.DOMINATION) return <></>;
-                            return <Image src="/imgs/domination-icon-big.gif" w={50} />;
+                            return <Image src="/imgs/domination-icon.gif" w={50} />;
                           })}</Group>
                         </Stack>
                       </Carousel.Slide>
