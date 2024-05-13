@@ -5,3 +5,4 @@ logs/
 *.db
 src/api/imgs/
 .helpful.git.commands
+*.env
