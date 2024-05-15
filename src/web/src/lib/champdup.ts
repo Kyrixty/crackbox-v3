@@ -39,6 +39,7 @@ export type ImageData = {
   artists: Player[];
   dUri: string;
   title: string;
+  last_changed: string;
 };
 
 export enum AwardNames {
@@ -62,6 +63,7 @@ export type MatchupContext = {
   leftVotes: string[];
   right: ImageData;
   rightVotes: string[];
+  initial_leader: "left" | "right";
 };
 
 export enum NotifyType {

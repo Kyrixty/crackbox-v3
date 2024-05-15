@@ -106,11 +106,15 @@ class Image(BaseModel):
     dUri: str | None = None
     artists: list[Player]
     prompt: str
+    last_changed: str | None = None
 
 class AwardName(str, Enum, metaclass=MetaEnum):
     DOMINATION = "DOMINATION"
     ON_FIRE = "ON_FIRE"
     BRUH = "BRUH"
+    PRIDE = "PRIDE"
+    COMEBACK = "COMEBACK"
+    FAST = "FAST"
 
 class Award(BaseModel):
     name: AwardName
@@ -121,8 +125,11 @@ class ImageMatchup(BaseModel):
     leftVotes: set[str]
     right: Image
     rightVotes: set[str]
+    initial_leader: str | None = None
 
     def add_vote(self, username: str, target: Literal["left", "right"]):
+        if not self.initial_leader:
+            self.initial_leader = target
         if target == "left":
             if username in self.rightVotes:
                 self.rightVotes.remove(username)
@@ -182,6 +189,7 @@ class DrawManager:
         self.reset()
     
     def add_image(self, username: str, img: Image):
+        img.last_changed = datetime.datetime.now()
         self.images[username] = img
     
     def get_images(self) -> list[Image]:
@@ -227,6 +235,7 @@ class CounterManager:
         return matchups
     
     def set_ctr(self, username: str, img: Image):
+        img.last_changed = datetime.datetime.now()
         self.ctrs[username] = img
         
     def reset(self):
@@ -253,6 +262,10 @@ RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B", "L"]
 # below can be handled generically though
 TIMED_EVENTS = ["D1", "C1", "D2", "C2"]
 
+# Unfortunately we can't rely on the host to advance the matchup since they aren't actually
+# "hosting" the game. They are still technically treated as a client and as such may have
+# an unstable connection. If they time out & we relied on them to advance the matchups
+# we would get stuck.
 AWARDS_DURATION = 6 # frontend can use up to 5s for an animation, the extra second is a grace period for latency
 
 class ChampdUp(Game):
@@ -347,11 +360,13 @@ class ChampdUp(Game):
 
             # Calculate points
             lp, rp = 0, 0
-            scalar = 1897
+            scalar_w = 1897
+            scalar_l = 949
 
-            # We want at least (roughly) 50% of players to have voted for a bonus
-            # to be awarded
-            can_bonus = (llv + lrv) > math.floor(len(self.players) / 2)
+            # We want at least (roughly) 50% of eligible players to have voted for a bonus
+            # to be awarded. Note that an eligible player is any player that isn't one of the
+            # picassos behind the image candidates.
+            can_bonus = (llv + lrv) > math.floor((len(self.players) - len(matchup.left.artists) - len(matchup.right.artists)) / 2)
             dominated = 0 in (llv, lrv) and (llv, lrv).count(0) == 1
             on_fire = not dominated and (llv > 2 * lrv or lrv > 2 * llv)
             D = can_bonus * dominated * 250 * len(self.players)
@@ -359,25 +374,28 @@ class ChampdUp(Game):
             B = ((llv + lrv) == 0) * 1
             winner: Image = matchup.left
 
+            def award_points_to_artists(im: Image, inc: int) -> None:
+                for artist in im.artists:
+                    self.players[artist.username].points += inc
+
             if llv == lrv:
                 # Because right image countered left image,
                 # left image is given a slight bonus in points
-                lp += scalar * llv + 100 + B
-                rp += scalar * lrv + B
-                for artist in matchup.left.artists:
-                    self.players[artist.username].points += lp
-                
-                for artist in matchup.right.artists:
-                    self.players[artist.username].points += rp
+                lp += scalar_w * llv + 100 + B
+                rp += scalar_l * lrv + B
+                award_points_to_artists(matchup.left, lp)
+                award_points_to_artists(matchup.right, rp)
             elif llv > lrv:
-                lp += scalar * llv + D + F
-                for artist in matchup.left.artists:
-                    self.players[artist.username].points += lp
+                lp += scalar_w * llv + D + F
+                rp += scalar_l * lrv
+                award_points_to_artists(matchup.left, lp)
+                award_points_to_artists(matchup.right, rp)
             else:
                 winner = matchup.right
-                rp += scalar * lrv + D + F
-                for artist in matchup.right.artists:
-                    self.players[artist.username].points += rp
+                lp += scalar_l * llv
+                rp += scalar_w * lrv + D + F
+                award_points_to_artists(matchup.left, lp)
+                award_points_to_artists(matchup.right, rp)
             
             awards: list[Award] = []
             if dominated:
@@ -387,6 +405,62 @@ class ChampdUp(Game):
             if (llv + lrv) == 0:
                 awards.append(Award(name=AwardName.BRUH, bonus=B))
             
+            # Now we evaluate any image that doesn't require the image to be a winner
+            # (though it can still be e.g. comeback award) nor any specific amount of
+            # players to have voted
+
+            # Note that awards are only shown on the winners, though points are still awarded
+            # to losers for awards that can be achieved without winning (e.g. PRIDE award)
+
+            # :: PRIDE award
+            # title has the word 'gay' in it
+            pride = False
+            pride_points = 100
+            if matchup.left.title.lower().startswith("gay") or " gay " in matchup.left.title.lower():
+                award_points_to_artists(matchup.left, pride_points)
+                if winner == matchup.left:
+                    pride = True
+            if matchup.right.title.lower().startswith("gay") or " gay " in matchup.right.title.lower():
+                award_points_to_artists(matchup.right, pride_points)
+                if winner == matchup.right:
+                    pride = True
+            if pride:
+                awards.append(Award(name=AwardName.PRIDE, bonus=pride_points))
+            
+            # :: Comeback award
+            # winner started off losing but won in the end
+            comeback_points = 300
+            if matchup.initial_leader == "left" and winner == matchup.right or \
+                matchup.initial_leader == "right" and winner == matchup.left:
+                awards.append(Award(name=AwardName.COMEBACK, bonus=comeback_points))
+                award_points_to_artists(winner, comeback_points)
+            
+            # :: Fast award
+            # the last change is within the first quarter of the round
+            fast_points = 500
+            if not winner.last_changed:
+                # artists (somehow) won with a blank image)
+                awards.append(Award(name=AwardName.FAST, bonus=fast_points))
+                award_points_to_artists(winner, fast_points)
+            else:
+                winner_submitted = datetime.datetime.fromisoformat(winner.last_changed)
+                if winner == matchup.left:
+                    draw_event_name = self.get_current_event().name.replace("V", "D")
+                    event_ends = self.events[0 if draw_event_name == "D1" else 3].ends
+                else:
+                    ctr_event_name = self.get_current_event().name.replace("V", "C")
+                    event_ends = self.events[1 if ctr_event_name == "C1" else 4].ends
+                event_ends = datetime.datetime.fromisoformat(event_ends)
+                event_starts = event_ends - datetime.timedelta(seconds=self.get_public_field("draw_duration"))
+                if winner_submitted < event_ends:
+                    t0 = event_starts.timestamp()
+                    t1 = winner_submitted.timestamp() - t0 
+                    t2 = event_ends.timestamp() - t0
+                    if t1/t2 < 1/3:
+                        # image was submitted during first third of the event
+                        awards.append(Award(name=AwardName.FAST, bonus=fast_points))
+                        award_points_to_artists(winner, fast_points)
+
             self.matchup_manager.finish_matchup()
             self.leaderboard_images.append(LeaderboardImage(image=winner, awards=awards))
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=AWARDS_DURATION))
