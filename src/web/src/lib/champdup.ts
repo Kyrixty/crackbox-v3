@@ -46,6 +46,9 @@ export enum AwardNames {
   DOMINATION = "DOMINATION",
   ON_FIRE = "ON_FIRE",
   BRUH = "BRUH",
+  PRIDE = "PRIDE",
+  FAST = "FAST",
+  UNDERDOG = "UNDERDOG",
 }
 
 export type Award = {

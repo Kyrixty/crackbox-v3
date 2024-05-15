@@ -113,7 +113,7 @@ class AwardName(str, Enum, metaclass=MetaEnum):
     ON_FIRE = "ON_FIRE"
     BRUH = "BRUH"
     PRIDE = "PRIDE"
-    COMEBACK = "COMEBACK"
+    UNDERDOG = "UNDERDOG"
     FAST = "FAST"
 
 class Award(BaseModel):
@@ -427,12 +427,12 @@ class ChampdUp(Game):
             if pride:
                 awards.append(Award(name=AwardName.PRIDE, bonus=pride_points))
             
-            # :: Comeback award
+            # :: Underdog award
             # winner started off losing but won in the end
             comeback_points = 300
             if matchup.initial_leader == "left" and winner == matchup.right or \
                 matchup.initial_leader == "right" and winner == matchup.left:
-                awards.append(Award(name=AwardName.COMEBACK, bonus=comeback_points))
+                awards.append(Award(name=AwardName.UNDERDOG, bonus=comeback_points))
                 award_points_to_artists(winner, comeback_points)
             
             # :: Fast award
