@@ -28,7 +28,6 @@ DEFAULT_PUBLIC_ATTRS = {
     "enable_private_messages": True,
     "draw_duration": 20 if DEBUG else 180,
     "vote_duration": 10,
-    "awards_duration": 5,
 }
 
 task_threads = []
@@ -254,6 +253,8 @@ RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B", "L"]
 # below can be handled generically though
 TIMED_EVENTS = ["D1", "C1", "D2", "C2"]
 
+AWARDS_DURATION = 6 # frontend can use up to 5s for an animation, the extra second is a grace period for latency
+
 class ChampdUp(Game):
     poll: None | Poll
 
@@ -388,7 +389,7 @@ class ChampdUp(Game):
             
             self.matchup_manager.finish_matchup()
             self.leaderboard_images.append(LeaderboardImage(image=winner, awards=awards))
-            ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("awards_duration")))
+            ends = (datetime.datetime.now() + datetime.timedelta(seconds=AWARDS_DURATION))
             await self.filter_send(MessageSchema(
                 type=MessageType.MATCHUP_RESULT,
                 value={
@@ -495,15 +496,6 @@ class ChampdUp(Game):
                     continue
                 if v < 10:
                     errors.append((k, "Value must be at least 10 (seconds)"))
-            if k == "awards_duration":
-                try:
-                    v = int(v)
-                except ValueError:
-                    errors.append((k, "Value must be an integer"))
-                    continue
-                if v < 3:
-                    errors.append((k, "Value must be >= 3"))
-                    continue
             self.config.public[k] = v
         self.max_players = self.get_public_field("max_players")
         return errors
