@@ -12,6 +12,7 @@ import {
   Card,
   Grid,
   Group,
+  HoverCard,
   Image,
   ScrollArea,
   SimpleGrid,
@@ -213,10 +214,31 @@ const RunningComponent = () => {
   const [leftVotes, setLeftVotes] = useState<string[]>([]);
   const [rightVotes, setRightVotes] = useState<string[]>([]);
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
-  const [leaderboardImgs, setLeaderboardImgs] = useState<LeaderboardImage[]>([]);
+  const [leaderboardImgs, setLeaderboardImgs] = useState<LeaderboardImage[]>(
+    []
+  );
   const { setBg, setClassName } = useGameStyleContext();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
+  const awardNamesIconMap = {
+    [AwardNames.DOMINATION]: "/imgs/domination-icon.gif",
+    [AwardNames.ON_FIRE]: "/imgs/on-fire-icon-crown.gif",
+    [AwardNames.BRUH]: "/imgs/bruh-icon.gif",
+    [AwardNames.COMEBACK]: "/imgs/comeback-icon.gif",
+    [AwardNames.FAST]: "/imgs/fast-icon.gif",
+    [AwardNames.PRIDE]: "/imgs/pride-icon.gif",
+  };
+
+  const awardNamesDescMap = {
+    [AwardNames.DOMINATION]: "Received all votes!",
+    [AwardNames.ON_FIRE]:
+      "Didn't receive all votes but got at least double their opponent",
+    [AwardNames.BRUH]: "Nobody voted at all...",
+    [AwardNames.COMEBACK]: "Started off behind but brought it back",
+    [AwardNames.FAST]:
+      "The last change was within the first third of the round",
+    [AwardNames.PRIDE]: "Makes JCL horny",
+  };
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.STATE) {
       if (lastJsonMessage.value.matchup) {
@@ -339,7 +361,13 @@ const RunningComponent = () => {
                   {leaderboard.length > 3 && (
                     <ScrollArea w="100%" offsetScrollbars>
                       {leaderboard.slice(3).map((p) => (
-                        <Box bg={`linear-gradient(0deg, ${darken(p.color, 0.5)} 30%, ${p.color}`} p={5}>
+                        <Box
+                          bg={`linear-gradient(0deg, ${darken(
+                            p.color,
+                            0.5
+                          )} 30%, ${p.color}`}
+                          p={5}
+                        >
                           <Group>
                             <Avatar
                               size="lg"
@@ -349,7 +377,7 @@ const RunningComponent = () => {
                                   : "/imgs/crackbox-logo-2.png"
                               }
                             />
-                            <Text>${p.points}</Text>
+                            <Text style={{ textShadow: "2px 2px 1px black" }}>${p.points}</Text>
                           </Group>
                         </Box>
                       ))}
@@ -398,10 +426,26 @@ const RunningComponent = () => {
                               </Group>
                             ))}
                           </Group>
-                          <Group>{img.awards.map((award) => {
-                            if (award.name !== AwardNames.DOMINATION) return <></>;
-                            return <Image src="/imgs/domination-icon.gif" w={50} />;
-                          })}</Group>
+                          <Group>
+                            {img.awards.map((award) => {
+                              return (
+                                <HoverCard>
+                                  <HoverCard.Target>
+                                    <Image
+                                      src={awardNamesIconMap[award.name]}
+                                      w={75}
+                                    />
+                                  </HoverCard.Target>
+                                  <HoverCard.Dropdown>
+                                    <Text size="sm">
+                                      {award.name} - ${award.bonus} -{" "}
+                                      {awardNamesDescMap[award.name]}
+                                    </Text>
+                                  </HoverCard.Dropdown>
+                                </HoverCard>
+                              );
+                            })}
+                          </Group>
                         </Stack>
                       </Carousel.Slide>
                     ))}

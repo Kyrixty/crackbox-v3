@@ -189,7 +189,7 @@ class DrawManager:
         self.reset()
     
     def add_image(self, username: str, img: Image):
-        img.last_changed = datetime.datetime.now()
+        img.last_changed = datetime.datetime.now().isoformat()
         self.images[username] = img
     
     def get_images(self) -> list[Image]:
@@ -235,7 +235,7 @@ class CounterManager:
         return matchups
     
     def set_ctr(self, username: str, img: Image):
-        img.last_changed = datetime.datetime.now()
+        img.last_changed = datetime.datetime.now().isoformat()
         self.ctrs[username] = img
         
     def reset(self):
