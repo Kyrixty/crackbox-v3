@@ -269,7 +269,7 @@ const RunningComponent = () => {
 
     return (
       <Title>
-        {minutes} : {seconds}
+        {minutes === 0 ? "00" : minutes} : {seconds === 0 ? "00" : seconds}
       </Title>
     );
   };
