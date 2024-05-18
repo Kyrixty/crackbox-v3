@@ -83,6 +83,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     PM = "PM"
     NOTIFY = "NOTIFY"
     IMAGE = "IMAGE"
+    IMAGE_SUBMITS = "IMAGE_SUBMITS"
     MATCHUP = "MATCHUP"
     MATCHUP_VOTE = "MATCHUP_VOTE"
     MATCHUP_RESULT = "MATCHUP_RESULT"
@@ -242,6 +243,24 @@ class CounterManager:
         self.set_ctr_img_map({})
         self.ctrs = {}
 
+class ReadyManager:
+    ready: set[str]
+
+    def __init__(self) -> None:
+        self.ready = set()
+        self.players: list[Player] = []
+
+    def reset(self, player_list: list[Player]) -> None:
+        self.ready = set()
+        self.players = player_list
+    
+    def set_ready(self, p: Player) -> None:
+        self.ready.add(p.username)
+    
+    def all_ready(self) -> bool:
+        lr = len(self.ready)
+        return all(self.ready) and lr and lr == len(self.players)
+
 class Event(BaseModel):
     name: str
     timed: bool
@@ -281,6 +300,7 @@ class ChampdUp(Game):
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
         self.draw_manager = DrawManager([])
         self.ctr_manager = CounterManager({}, [])
+        self.ready_manager = ReadyManager()
         self.matchup_manager = MatchupManager()
         self.leaderboard: list[Player] = []
         self.leaderboard_images: list[LeaderboardImage] = []
@@ -290,6 +310,10 @@ class ChampdUp(Game):
     def get_public_field(self, key: str) -> Any:
         return self.config.public[key]
     
+    def create_new_timer(self, callback: Callable | Coroutine | None = None) -> None:
+        self.timer.kill()
+        self.timer = Timer("ChampdUp Timer", self.t, callback)
+    
     async def iter_game_events(self) -> None:
         self.debug("iter_game_events called")
         event_before = self.get_current_event()
@@ -298,6 +322,7 @@ class ChampdUp(Game):
         if self.event_idx >= len(self.events):
             return
         event = self.get_current_event()
+        self.create_new_timer(self.iter_game_events)
         self.debug(f"Processing {event.name}..")
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
             return await self.iter_game_events()
@@ -305,9 +330,11 @@ class ChampdUp(Game):
             self.leaderboard = sorted(self.get_player_list(), key=lambda p: p.points, reverse=True)
         if event.name in ("D1", "D2"):
             self.draw_manager.players = self.get_player_list()
+            self.ready_manager.reset(self.get_player_list())
             self.draw_manager.reset()
         if event.name in ("C1", "C2"):
             self.ctr_manager.reset()
+            self.ready_manager.reset(self.get_player_list())
             self.ctr_manager.players = self.get_player_list()
             self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
         if event.name in ("V1", "V2"):
@@ -347,7 +374,7 @@ class ChampdUp(Game):
                 if username not in blacklist:
                     await self.send(self.ws_map[username], msg)
     
-    async def iter_vote_round(self):
+    async def iter_vote_round(self, event_idx: int | None = None):
         if not self.matchup_manager.matchups:
             self.error("No matchups found at vote round. iter_vote_round will likely error, ensure matchup_manager's matchups have been set before iter_vote_round is called!")
         if self.matchup_manager.has_started() and not self.matchup_manager.matchup_finished:
@@ -500,13 +527,11 @@ class ChampdUp(Game):
         event_data = {}
         if self.get_current_event().name in ("D1", "D2"):
             if username != 0:
-                self.debug(self.draw_manager.prompts[username])
                 event_data = {
                     "prompt": self.draw_manager.prompts[username]
                 }
         if self.get_current_event().name in ("C1", "C2"):
             if username != 0:
-                self.debug(str(self.ctr_manager.ctr_img_map[username]))
                 event_data = {
                     "counter": self.ctr_manager.ctr_img_map[username]
                 }
@@ -671,6 +696,7 @@ class ChampdUp(Game):
         pm = ProcessedMessage()
         if msg.type == MessageType.STATUS:
             if not msg.value in GameStatus or len(self.players) < 3:
+                pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.FAIL, "msg": "You need at least 3 players to start!"}, 0)
                 return pm
             self.status = msg.value
             if self.status == GameStatus.RUNNING:
@@ -679,7 +705,6 @@ class ChampdUp(Game):
                 self.timer.kill()
             if self.status != GameStatus.RUNNING:
                 for name, _ws in self.ws_map.items():
-                    self.debug(f"{name}, {_ws}")
                     await self.send(_ws, MessageSchema(type=MessageType.STATE, value=self.get_game_state(name), author=0))
             return pm
         if msg.type == MessageType.PM:
@@ -720,7 +745,13 @@ class ChampdUp(Game):
                     if not title:
                         title = get_random_title(username)
                     self.draw_manager.add_image(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
+                    self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
+                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
+                    if self.ready_manager.all_ready():
+                        await self.iter_game_events()
+                        self.debug("PUNGENT")
+                        return pm
         if self.get_current_event().name in ("C1", "C2"):
             if msg.type == MessageType.IMAGE:
                 if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str:
@@ -728,7 +759,13 @@ class ChampdUp(Game):
                     if not title:
                         title = get_random_title(username)
                     self.ctr_manager.set_ctr(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.ctr_manager.ctr_img_map[username].prompt))
+                    self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
+                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
+                    if self.ready_manager.all_ready():
+                        await self.iter_game_events()
+                        self.debug("PUNGENT")
+                        return pm
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
                 if not self.matchup_manager.has_started() or self.matchup_manager.matchup_finished:

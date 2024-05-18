@@ -14,6 +14,7 @@ import {
   Group,
   HoverCard,
   Image,
+  Indicator,
   ScrollArea,
   SimpleGrid,
   Stack,
@@ -52,6 +53,9 @@ import { Carousel } from "@mantine/carousel";
 import { darken } from "@mantine/core";
 import Autoplay from "embla-carousel-autoplay";
 import { IconUfo } from "@tabler/icons-react";
+import TextTransition, { presets } from "react-text-transition";
+import { useTimer } from "react-timer-hook";
+import { randomIntFromInterval } from "@utils/rand";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -206,8 +210,21 @@ const LeaderboardCard = ({
   );
 };
 
+const RUNNING_HOST_TEXTS = [
+  "Don't forget to submit",
+  "No gay drawings",
+  "Crossing Carson's legs..",
+  "FlipSide is a proud member of the LGBTQIA2S+ community! 🌈",
+  "I didn't raid the clan, Jacob",
+  "#LONGLIVEJANGOWU",
+  "I think Jong Zho and Jamie Yim have conspired to take over the clan",
+  "Sponsored by the CCP",
+  "If you're seeing this message, the game broke :(",
+];
+
 const RunningComponent = () => {
   const { currentEvent, currentEventData } = useChampdUpContext();
+  const { players } = useGameContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
   const [matchup, setMatchup] = useState<MatchupContext | null>(null);
   const [matchupEnds, setMatchupEnds] = useState<Date | null>(null);
@@ -217,6 +234,10 @@ const RunningComponent = () => {
   const [leaderboardImgs, setLeaderboardImgs] = useState<LeaderboardImage[]>(
     []
   );
+  const [textIdx, setTextIdx] = useState(0);
+  const [_interval, _setInterval] = useState<number | null>(null);
+  const [playersReady, setPlayersReady] = useState<string[]>([]);
+  const [eventEnds, setEventEnds] = useState<Date>(new Date());
   const { setBg, setClassName } = useGameStyleContext();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
@@ -239,6 +260,36 @@ const RunningComponent = () => {
       "The last change was within the first third of the round",
     [AwardNames.PRIDE]: "Makes JCL horny",
   };
+
+  const TimerComponent = ({ expiryTimestamp }: { expiryTimestamp: Date }) => {
+    const { minutes, seconds, start, pause } = useTimer({
+      expiryTimestamp,
+      autoStart: true,
+    });
+
+    return (
+      <Title>
+        {minutes} : {seconds}
+      </Title>
+    );
+  };
+
+  useEffect(() => {
+    console.log(eventEnds);
+  }, [eventEnds]);
+
+  // Initial load
+  useEffect(() => {
+    if (_interval !== null) {
+      clearInterval(_interval);
+    }
+    _setInterval(
+      setInterval(() => {
+        setTextIdx(randomIntFromInterval(0, RUNNING_HOST_TEXTS.length - 1));
+      }, 5000)
+    );
+  }, []);
+
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.STATE) {
       if (lastJsonMessage.value.matchup) {
@@ -247,6 +298,11 @@ const RunningComponent = () => {
         setRightVotes(lastJsonMessage.value.matchup.rightVotes);
       }
     }
+
+    if (lastJsonMessage.type === MessageType.IMAGE_SUBMITS) {
+      setPlayersReady(lastJsonMessage.value);
+    }
+
     if (lastJsonMessage.type == MessageType.MATCHUP) {
       setMatchupEnds(new Date(lastJsonMessage.value.ends));
       setMatchup(lastJsonMessage.value.matchup);
@@ -269,7 +325,11 @@ const RunningComponent = () => {
   }, [currentEventData]);
 
   useEffect(() => {
+    setPlayersReady([]);
     if (currentEvent === null) return;
+    if (currentEvent.ends) {
+      setEventEnds(new Date(currentEvent.ends));
+    }
     if (currentEvent.name === EventNames.Leaderboard) {
       setBg(
         "white radial-gradient(#cbcbcb 40%, transparent 40%) 0px 0px/50px 50px round"
@@ -292,9 +352,38 @@ const RunningComponent = () => {
         ]}
       >
         <HostComponent>
-          <Text style={{ textShadow: "2px 2px 1px black" }}>
-            Waiting for players to finish drawing..
-          </Text>
+          <Stack align="center" gap="xl">
+            <TimerComponent expiryTimestamp={eventEnds} />
+            <Group justify="center">
+              {players.map((p) => (
+                <Indicator
+                  position="bottom-end"
+                  withBorder
+                  inline
+                  size={24}
+                  offset={7}
+                  processing={!playersReady.includes(p.username)}
+                  color={playersReady.includes(p.username) ? "green" : "blue"}
+                >
+                  <Avatar
+                    src={
+                      p.avatar_data_url
+                        ? p.avatar_data_url
+                        : "/imgs/crackbox-logo-2.png"
+                    }
+                    size="xl"
+                    color={p.color}
+                  />
+                </Indicator>
+              ))}
+            </Group>
+            <TextTransition
+              springConfig={presets.gentle}
+              style={{ textShadow: "2px 2px 1px black" }}
+            >
+              {RUNNING_HOST_TEXTS[textIdx]}
+            </TextTransition>
+          </Stack>
         </HostComponent>
         <PlayerComponent>
           <SketchPad gameData={currentEventData} />
@@ -377,7 +466,9 @@ const RunningComponent = () => {
                                   : "/imgs/crackbox-logo-2.png"
                               }
                             />
-                            <Text style={{ textShadow: "2px 2px 1px black" }}>${p.points}</Text>
+                            <Text style={{ textShadow: "2px 2px 1px black" }}>
+                              ${p.points}
+                            </Text>
                           </Group>
                         </Box>
                       ))}
@@ -404,7 +495,7 @@ const RunningComponent = () => {
                           >
                             <Title order={3}>{img.image.title}</Title>
                           </Box>
-                          <Image src={img.image.dUri} />
+                          <Image w={400} src={img.image.dUri} />
                           <Group>
                             {img.image.artists.map((p) => (
                               <Group>
