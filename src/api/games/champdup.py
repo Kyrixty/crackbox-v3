@@ -689,6 +689,7 @@ class ChampdUp(Game):
             if self.validate_chat_msg(msg):
                 if msg.value.strip() == "/kill":
                     await self.kill()
+                    return pm
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
                 pm.add_broadcast(msg.type, msg.value, 0)

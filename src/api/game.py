@@ -411,6 +411,8 @@ class Game(Generic[T]):
     async def kill(self) -> None:
         self.status = GameStatus.STOPPED
         await self.publish(DefaultMessageTypes.STATUS, value=self.status, author=0)
+        for ws in self.ws_map.values():
+            await ws.close(1000, "GAME_STOPPED")
     
 if __name__ == "__main__":
     # Basic join/leave tests
