@@ -56,7 +56,6 @@ export const Poll = (props: PollProps) => {
   };
 
   useEffect(() => {
-    console.info(lastJsonMessage);
     if (lastJsonMessage === null) return;
     if (lastJsonMessage.type === props.poll_start_signal) {
       const poll: PollData = lastJsonMessage.value;

@@ -26,6 +26,7 @@ import {
   AwardNames,
   EventNames,
   ImageData,
+  SwapImage,
   LeaderboardImage,
   MatchupContext,
   MessageType,
@@ -238,6 +239,7 @@ const RunningComponent = () => {
   const [_interval, _setInterval] = useState<number | null>(null);
   const [playersReady, setPlayersReady] = useState<string[]>([]);
   const [eventEnds, setEventEnds] = useState<Date>(new Date());
+  const [swapImages, setSwapImages] = useState<SwapImage[]>([]);
   const { setBg, setClassName } = useGameStyleContext();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
@@ -269,14 +271,11 @@ const RunningComponent = () => {
 
     return (
       <Title>
-        {minutes === 0 ? "00" : minutes} : {seconds === 0 ? "00" : seconds}
+        {minutes == 0 ? "00" : minutes < 10 ? `0${minutes}` : minutes} :{" "}
+        {seconds == 0 ? "00" : seconds < 10 ? `0${seconds}` : seconds}
       </Title>
     );
   };
-
-  useEffect(() => {
-    console.log(eventEnds);
-  }, [eventEnds]);
 
   // Initial load
   useEffect(() => {
@@ -291,6 +290,7 @@ const RunningComponent = () => {
   }, []);
 
   useEffect(() => {
+    console.info(lastJsonMessage);
     if (lastJsonMessage.type == MessageType.STATE) {
       if (lastJsonMessage.value.players_ready) {
         setPlayersReady(lastJsonMessage.value.players_ready);
@@ -302,11 +302,20 @@ const RunningComponent = () => {
       }
     }
 
+    if (lastJsonMessage.type === MessageType.IMAGE_SWAP) {
+      setMatchup(lastJsonMessage.value.matchup);
+    }
+
     if (lastJsonMessage.type === MessageType.IMAGE_SUBMITS) {
       setPlayersReady(lastJsonMessage.value);
     }
 
     if (lastJsonMessage.type == MessageType.MATCHUP) {
+      if (lastJsonMessage.value.swap_candidates) {
+        setSwapImages(lastJsonMessage.value.swap_candidates);
+      } else {
+        setSwapImages([]);
+      }
       setMatchupEnds(new Date(lastJsonMessage.value.ends));
       setMatchup(lastJsonMessage.value.matchup);
       setLeftVotes([]);
@@ -417,7 +426,9 @@ const RunningComponent = () => {
           </Conditional>
         </HostComponent>
         <PlayerComponent>
-          {matchup !== null && <PlayerVoteController matchup={matchup} />}
+          {matchup !== null && (
+            <PlayerVoteController swapImages={swapImages} matchup={matchup} />
+          )}
           {matchup === null && (
             <Text style={{ textShadow: "2px 2px 1px black" }}>
               Waiting for matchup data..

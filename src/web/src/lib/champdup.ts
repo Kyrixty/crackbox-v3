@@ -14,6 +14,7 @@ export enum MessageType {
   POLL_VOTE = "POLL_VOTE",
   IMAGE = "IMAGE",
   IMAGE_SUBMITS = "IMAGE_SUBMITS",
+  IMAGE_SWAP = "IMAGE_SWAP",
   MATCHUP = "MATCHUP",
   MATCHUP_VOTE = "MATCHUP_VOTE",
   MATCHUP_RESULT = "MATCHUP_RESULT",
@@ -42,6 +43,11 @@ export type ImageData = {
   title: string;
   last_changed: string;
 };
+
+export type SwapImage = {
+  image: ImageData;
+  image_hash: string;
+}
 
 export enum AwardNames {
   DOMINATION = "DOMINATION",

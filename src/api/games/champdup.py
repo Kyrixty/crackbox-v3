@@ -1,4 +1,5 @@
 import datetime
+import hashlib
 import inspect
 import anyio
 import threading
@@ -75,6 +76,7 @@ class Timer:
 class ChampdUpConfig(GenericGameConfig):
     public: PublicConfig = DEFAULT_PUBLIC_ATTRS
 
+# : MessageTypes
 class MessageType(str, Enum, metaclass=MetaEnum):
     STATE = "STATE"
     STATUS = "STATUS"
@@ -85,6 +87,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     NOTIFY = "NOTIFY"
     IMAGE = "IMAGE"
     IMAGE_SUBMITS = "IMAGE_SUBMITS"
+    IMAGE_SWAP = "IMAGE_SWAP" # Not available in bonus round
     MATCHUP = "MATCHUP"
     MATCHUP_VOTE = "MATCHUP_VOTE"
     MATCHUP_RESULT = "MATCHUP_RESULT"
@@ -262,6 +265,47 @@ class ReadyManager:
         lr = len(self.ready)
         return all(self.ready) and lr and lr == len(self.players)
 
+class StoreImage(BaseModel):
+    image: Image
+    image_hash: str
+
+class PlayerImageStore:
+    store: dict[str, dict[str, StoreImage]]
+
+    def __init__(self) -> None:
+        self.store = {}
+    
+    def add_plr_img(self, p: Player, img: Image, event_name: str) -> None:
+        if p.username not in self.store:
+            self.store[p.username] = {}
+        self.store[p.username][event_name] = StoreImage(image=img, image_hash=hashlib.sha256(str(img).encode("utf-8")).hexdigest())
+    
+    def get_store(self) -> dict[str, list[Image]]:
+        return self.store
+    
+    def get_plr_store(self, p: Player, event_blacklist: list[str] = []) -> list[StoreImage]:
+        if p.username not in self.store:
+            return []
+        store = []
+        for event_name in self.store[p.username]:
+            if event_name in event_blacklist:
+                continue
+            if self.store[p.username][event_name]:
+                store.append(self.store[p.username][event_name])
+        return store
+    
+    def get_plr_image_from_hash(self, username: str, hash: str) -> Image | None:
+        if username not in self.store:
+            return None
+        for event_name in self.store[username]:
+            if self.store[username][event_name].image_hash == hash:
+                return self.store[username][event_name].image
+        return None
+    
+    def reset(self) -> None:
+        '''CAREFUL! Will forget all previously stored player images!'''
+        self.store = {}
+
 class Event(BaseModel):
     name: str
     timed: bool
@@ -303,6 +347,7 @@ class ChampdUp(Game):
         self.ctr_manager = CounterManager({}, [])
         self.ready_manager = ReadyManager()
         self.matchup_manager = MatchupManager()
+        self.player_img_store = PlayerImageStore()
         self.leaderboard: list[Player] = []
         self.leaderboard_images: list[LeaderboardImage] = []
         self.timer = Timer("ChampdUp Timer", t, self.iter_game_events)
@@ -375,6 +420,13 @@ class ChampdUp(Game):
                 if username not in blacklist:
                     await self.send(self.ws_map[username], msg)
     
+    async def predicate_send(self, mType: MessageType, predicate: Callable[[str], Any]) -> None:
+        '''Whatever `predicate(username)` returns will be sent to the client with the corresponding
+        username as the message value.'''
+        for username in self.ws_map:
+            value = predicate(username)
+            await self.send(self.ws_map[username], MessageSchema(type=mType, value=predicate(username), author=0))
+    
     async def iter_vote_round(self, event_idx: int | None = None):
         if not self.matchup_manager.matchups:
             self.error("No matchups found at vote round. iter_vote_round will likely error, ensure matchup_manager's matchups have been set before iter_vote_round is called!")
@@ -388,7 +440,7 @@ class ChampdUp(Game):
 
             # Calculate points
             lp, rp = 0, 0
-            scalar_w = 1897
+            scalar_w = 1897 * int(self.get_current_event().name[1]) # either V1 or V2, we want points to be doubled during second round
             scalar_l = 949
 
             # We want at least (roughly) 50% of eligible players to have voted for a bonus
@@ -490,7 +542,18 @@ class ChampdUp(Game):
                         award_points_to_artists(winner, fast_points)
 
             self.matchup_manager.finish_matchup()
-            self.leaderboard_images.append(LeaderboardImage(image=winner, awards=awards))
+
+            # Since images can now be swapped, we don't want two of the same image to show on the end screen.
+            # As such we need to check if any leaderboard image previously saved has the same title and
+            # dUri as our current image. If so, do not add this image as this image was swapped in (still
+            # award points though.)
+            image_was_swapped = False
+            for leaderboard_image in self.leaderboard_images:
+                if leaderboard_image.image.title == winner.title and leaderboard_image.image.dUri == winner.dUri:
+                    image_was_swapped = True
+                    break
+            if not image_was_swapped:
+                self.leaderboard_images.append(LeaderboardImage(image=winner, awards=awards))
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=AWARDS_DURATION))
             await self.filter_send(MessageSchema(
                 type=MessageType.MATCHUP_RESULT,
@@ -514,11 +577,23 @@ class ChampdUp(Game):
             return await self.iter_game_events()
         self.timer.callback = self.iter_vote_round
         ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("vote_duration")))
-        await self.filter_send(MessageSchema(
-            type=MessageType.MATCHUP,
-            value={"matchup": self.matchup_manager.get_matchup(), "ends": ends},
-            author=0,
-        ))
+        matchup = self.matchup_manager.get_matchup()
+        def predicate(username: str) -> bool:
+            default = {"matchup": self.matchup_manager.get_matchup(), "ends": ends}
+            if self.get_current_event().name != "V2":
+                return default
+            for i, artist_pool in enumerate((matchup.left.artists, matchup.right.artists)):
+                for artist in artist_pool:
+                    if username == artist.username:
+                        is_left = i == 0
+                        blacklist = ["D2", "C2"] if is_left else ["C2"]
+                        default["swap_candidates"] = self.player_img_store.get_plr_store(self.get_player(username).data, blacklist)
+            return default
+        
+        await self.predicate_send(
+            MessageType.MATCHUP,
+            predicate,
+        )
         await self.timer.start(ends)
     
     def get_current_event(self) -> Event:
@@ -541,7 +616,7 @@ class ChampdUp(Game):
         if self.get_current_event().name in ("V1", "V2"):
             if self.matchup_manager.has_started():
                 event_data = {
-                    "matchup": self.matchup_manager.get_matchup()
+                    "matchup": self.matchup_manager.get_matchup(),
                 }
         if self.get_current_event().name == "L":
             event_data = {
@@ -754,7 +829,9 @@ class ChampdUp(Game):
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
+                    im = Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username])
                     self.draw_manager.add_image(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
+                    self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
@@ -768,7 +845,9 @@ class ChampdUp(Game):
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
-                    self.ctr_manager.set_ctr(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.ctr_manager.ctr_img_map[username].prompt))
+                    im = Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username])
+                    self.ctr_manager.set_ctr(username, im)
+                    self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
@@ -790,6 +869,37 @@ class ChampdUp(Game):
                         "left": self.matchup_manager.get_matchup().leftVotes,
                         "right": self.matchup_manager.get_matchup().rightVotes,
                     }, 0)
+            if msg.type == MessageType.IMAGE_SWAP and self.get_current_event().name == "V2":
+                # We don't want the 2P1B vote round to be included in this (when it's implemented,
+                # hence the double-check atm) nor do we want swaps during the first round.
+                if not self.matchup_manager.has_started() or self.matchup_manager.matchup_finished:
+                    return pm
+                # Figure out if they're in the matchup
+                matchup = self.matchup_manager.get_matchup()
+                p = self.get_player(username).data
+                is_left = p in matchup.left.artists
+                is_right = p in matchup.right.artists
+                
+                if not is_left and not is_right:
+                    return pm
+                if type(msg.value) != str:
+                    return pm
+                swap_img = self.player_img_store.get_plr_image_from_hash(username, msg.value)
+                if not swap_img:
+                    return pm
+                if swap_img.title in (matchup.left.title, matchup.right.title) and \
+                    swap_img.dUri in (matchup.left.dUri, matchup.right.dUri):
+                    pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.FAIL, "msg": "You cannot swap in the same image!"}, 0)
+                    return pm
+                if is_left:
+                    matchup.left = swap_img
+                else:
+                    matchup.right = swap_img
+                await self.filter_send(MessageSchema(
+                    type=MessageType.IMAGE_SWAP,
+                    value={"target": "left" if is_left else "right", "matchup": matchup},
+                    author=0
+                ))
         return pm
 
 import atexit

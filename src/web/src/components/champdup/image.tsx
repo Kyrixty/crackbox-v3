@@ -1,10 +1,24 @@
-import { ImageData, MatchupContext } from "@lib/champdup";
+import {
+  EventNames,
+  ImageData,
+  MatchupContext,
+  SwapImage,
+} from "@lib/champdup";
 import { useMessenger } from "@lib/context/ws";
-import { Card, Group, Image, SimpleGrid, Stack, Text } from "@mantine/core";
+import {
+  Card,
+  Group,
+  Image,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import { MessageType } from "@lib/champdup";
 import { useEffect, useState } from "react";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
+import { useChampdUpContext } from "@lib/context/champdup";
 
 export interface ImageCandidateProps {
   image?: ImageData;
@@ -87,14 +101,18 @@ export const PlayerImageCandidate = ({
 
 export interface PlayerVoteControllerProps {
   matchup: MatchupContext;
+  swapImages: SwapImage[];
 }
 
 export const PlayerVoteController = ({
   matchup,
+  swapImages,
 }: PlayerVoteControllerProps) => {
   const [clicked, setClicked] = useState<TARGET>(null);
   const [canVote, setCanVote] = useState(false);
   const { username } = useUserContext();
+  const { currentEvent } = useChampdUpContext();
+  const { sendJsonMessage } = useMessenger<MessageType>();
 
   useEffect(() => {
     setClicked(null);
@@ -111,12 +129,39 @@ export const PlayerVoteController = ({
     }
   }, [matchup]);
 
+  useEffect(() => {
+    console.log(swapImages);
+  }, [swapImages])
+
+  const handleSwapClick = (hash: string) => {
+    sendJsonMessage({ type: MessageType.IMAGE_SWAP, value: hash });
+  };
+
   return (
     <div id="player-vote-controller">
       {!canVote && (
-        <Text style={{ textShadow: "2px 2px 1px black" }}>
-          You can't vote on your own matchup!
-        </Text>
+        <Stack>
+          <Text style={{ textShadow: "2px 2px 1px black" }}>
+            {swapImages.length
+              ? "Click one of your previously submitted images below to swap it out!"
+              : "You can't vote on your own matchup!"}
+          </Text>
+          <Group>
+            {swapImages.length &&
+              swapImages.map((swap_img) => (
+                <Card
+                  style={{ cursor: "pointer", color: "black" }}
+                  onClick={() => handleSwapClick(swap_img.image_hash)}
+                  bg="white"
+                >
+                  <Card.Section>
+                    <Image src={swap_img.image.dUri} w={100} />
+                  </Card.Section>
+                  <Title order={4}>{swap_img.image.title}</Title>
+                </Card>
+              ))}
+          </Group>
+        </Stack>
       )}
       {canVote && (
         <SimpleGrid cols={2}>
