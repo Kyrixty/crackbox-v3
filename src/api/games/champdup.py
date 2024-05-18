@@ -26,7 +26,7 @@ DEFAULT_PUBLIC_ATTRS = {
     "poll_duration": 10,
     "host_only_polls": False,
     "enable_private_messages": True,
-    "draw_duration": 20 if DEBUG else 180,
+    "draw_duration": 20 if DEBUG else 120,
     "vote_duration": 10,
     "force_next_event_after_all_images_received": True,
 }
