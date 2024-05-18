@@ -26,7 +26,7 @@ DEFAULT_PUBLIC_ATTRS = {
     "poll_duration": 10,
     "host_only_polls": False,
     "enable_private_messages": True,
-    "draw_duration": 20 if DEBUG else 120,
+    "draw_duration": 120,
     "vote_duration": 10,
     "force_next_event_after_all_images_received": True,
 }
@@ -529,12 +529,14 @@ class ChampdUp(Game):
         if self.get_current_event().name in ("D1", "D2"):
             if username != 0:
                 event_data = {
-                    "prompt": self.draw_manager.prompts[username]
+                    "prompt": self.draw_manager.prompts[username],
+                    "players_ready": self.ready_manager.ready,
                 }
         if self.get_current_event().name in ("C1", "C2"):
             if username != 0:
                 event_data = {
-                    "counter": self.ctr_manager.ctr_img_map[username]
+                    "counter": self.ctr_manager.ctr_img_map[username],
+                    "players_ready": self.ready_manager.ready,
                 }
         if self.get_current_event().name in ("V1", "V2"):
             if self.matchup_manager.has_started():

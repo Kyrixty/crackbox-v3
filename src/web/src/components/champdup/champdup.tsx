@@ -292,6 +292,9 @@ const RunningComponent = () => {
 
   useEffect(() => {
     if (lastJsonMessage.type == MessageType.STATE) {
+      if (lastJsonMessage.value.players_ready) {
+        setPlayersReady(lastJsonMessage.value.players_ready);
+      }
       if (lastJsonMessage.value.matchup) {
         setMatchup(lastJsonMessage.value.matchup);
         setLeftVotes(lastJsonMessage.value.matchup.leftVotes);
