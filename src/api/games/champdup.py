@@ -28,6 +28,7 @@ DEFAULT_PUBLIC_ATTRS = {
     "enable_private_messages": True,
     "draw_duration": 20 if DEBUG else 180,
     "vote_duration": 10,
+    "force_next_event_after_all_images_received": True,
 }
 
 task_threads = []
@@ -595,6 +596,13 @@ class ChampdUp(Game):
                     continue
                 if v < 10:
                     errors.append((k, "Value must be at least 10 (seconds)"))
+                    continue
+            if k == "force_next_event_after_all_images_received":
+                try:
+                    v = bool(v)
+                except Exception:
+                    errors.append((k, "Value must be a boolean value"))
+                    continue
             self.config.public[k] = v
         self.max_players = self.get_public_field("max_players")
         return errors
@@ -748,7 +756,7 @@ class ChampdUp(Game):
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
-                    if self.ready_manager.all_ready():
+                    if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
@@ -762,7 +770,7 @@ class ChampdUp(Game):
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
-                    if self.ready_manager.all_ready():
+                    if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
