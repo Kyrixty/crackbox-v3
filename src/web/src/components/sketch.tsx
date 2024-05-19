@@ -389,6 +389,8 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
         </Group>
         <TextInput
           placeholder="Champion Title"
+          label={`Title (${title.length}/64)`}
+          error={title.length > 64}
           value={title}
           onChange={(e: Change) => setTitle(e.currentTarget.value)}
         />

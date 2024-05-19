@@ -6,6 +6,8 @@ import {
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
 import {
+  ActionIcon,
+  Affix,
   Avatar,
   Box,
   Button,
@@ -53,13 +55,17 @@ import { HostImageCandidate, PlayerVoteController } from "./image";
 import { Carousel } from "@mantine/carousel";
 import { darken } from "@mantine/core";
 import Autoplay from "embla-carousel-autoplay";
-import { IconUfo } from "@tabler/icons-react";
+import { IconUfo, IconVolume, IconVolumeOff } from "@tabler/icons-react";
 import TextTransition, { presets } from "react-text-transition";
 import { useTimer } from "react-timer-hook";
 import { randomIntFromInterval } from "@utils/rand";
+import { useSound } from "use-sound";
+import lobbyTheme from "/audio/lobby.wav";
+import { PlayFunction } from "use-sound/dist/types";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
+const VOLUME = 0.25;
 
 const PlayerCard = ({
   p,
@@ -125,10 +131,53 @@ const PlayerCard = ({
   );
 };
 
+type AudioControls = {
+  play: PlayFunction;
+  stop: (id?: string | undefined) => void;
+  sound: any;
+};
+
+const AudioController = () => {
+  const [enabled, setEnabled] = useState(false);
+  const [current, setCurrent] = useState<AudioControls | null>(null);
+  const [lobbyPlay, { stop, sound }] = useSound(lobbyTheme, {
+    volume: VOLUME,
+    loop: true,
+  });
+  const { status } = useGameContext();
+
+  useEffect(() => {
+    if (!enabled) {
+      if (current === null) return;
+      current.stop();
+      setCurrent(null);
+      return;
+    }
+    if (status === GameStatus.WAITING) {
+      setCurrent({ play: lobbyPlay, stop: stop, sound: sound });
+      lobbyPlay();
+      sound.fade(0, VOLUME, 1000);
+    }
+  }, [enabled]);
+
+  return (
+    <ActionIcon
+      color="white"
+      variant="transparent"
+      onClick={() => setEnabled(!enabled)}
+    >
+      {enabled ? <IconVolume /> : <IconVolumeOff />}
+    </ActionIcon>
+  );
+};
+
 const Lobby = () => {
   const { players } = useGameContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
   const im = isMobile();
+  const [play, {sound}] = useSound("/audio/lobby.wav", {
+    loop: true,
+  });
 
   if (players.length === 0) {
     return (
@@ -620,6 +669,11 @@ export const ChampdUp = () => {
           };
         }}
       />
+      <Affix position={{ bottom: "5vh", right: "5vw" }}>
+        <Group justify="center">
+          <AudioController />
+        </Group>
+      </Affix>
       <ChatDrawer />
       <Poll />
       <div id="home-icon">

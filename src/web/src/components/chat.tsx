@@ -168,10 +168,10 @@ export const ChatDrawer = () => {
     <>
       <div id="chat-toggle">
         {!opened && (
-          <div id="chat-toggle" onClick={switchDrawer}>
+          <ActionIcon color="white" variant="transparent" onClick={switchDrawer}>
             <IconMessageCircle size={24} />
             {shouldNotify && <div id="chat-notification" />}
-          </div>
+          </ActionIcon>
         )}
       </div>
       <Drawer

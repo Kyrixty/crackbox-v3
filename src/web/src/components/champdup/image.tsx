@@ -113,6 +113,7 @@ export const PlayerVoteController = ({
   const { username } = useUserContext();
   const { currentEvent } = useChampdUpContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
+  const [swapImgClicked, setSwapImgClicked] = useState<number | null>(null);
 
   useEffect(() => {
     setClicked(null);
@@ -130,11 +131,12 @@ export const PlayerVoteController = ({
   }, [matchup]);
 
   useEffect(() => {
-    console.log(swapImages);
+    setSwapImgClicked(null);
   }, [swapImages])
 
-  const handleSwapClick = (hash: string) => {
+  const handleSwapClick = (hash: string, idx: number) => {
     sendJsonMessage({ type: MessageType.IMAGE_SWAP, value: hash });
+    setSwapImgClicked(idx)
   };
 
   return (
@@ -151,13 +153,13 @@ export const PlayerVoteController = ({
               swapImages.map((swap_img) => (
                 <Card
                   style={{ cursor: "pointer", color: "black" }}
-                  onClick={() => handleSwapClick(swap_img.image_hash)}
-                  bg="white"
+                  onClick={() => handleSwapClick(swap_img.image_hash, swapImages.indexOf(swap_img))}
+                  bg={swapImgClicked === swapImages.indexOf(swap_img) ? "gray" : "white"}
                 >
                   <Card.Section>
                     <Image src={swap_img.image.dUri} w={100} />
                   </Card.Section>
-                  <Title order={4}>{swap_img.image.title}</Title>
+                  <Title order={5}>{swap_img.image.title}</Title>
                 </Card>
               ))}
           </Group>

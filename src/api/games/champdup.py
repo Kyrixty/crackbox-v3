@@ -144,6 +144,8 @@ class ImageMatchup(BaseModel):
                 self.leftVotes.remove(username)
             self.rightVotes.add(username)
 
+# : Managers
+
 class MatchupManager:
     def __init__(self) -> None:
         self._idx = -1
@@ -332,6 +334,7 @@ TIMED_EVENTS = ["D1", "C1", "D2", "C2"]
 # we would get stuck.
 AWARDS_DURATION = 6 # frontend can use up to 5s for an animation, the extra second is a grace period for latency
 
+# : Core
 class ChampdUp(Game):
     poll: None | Poll
 
@@ -586,7 +589,7 @@ class ChampdUp(Game):
                 for artist in artist_pool:
                     if username == artist.username:
                         is_left = i == 0
-                        blacklist = ["D2", "C2"] if is_left else ["C2"]
+                        blacklist = ["D2", "C2"]
                         default["swap_candidates"] = self.player_img_store.get_plr_store(self.get_player(username).data, blacklist)
             return default
         
@@ -821,11 +824,12 @@ class ChampdUp(Game):
         if msg.type == MessageType.POLL_VOTE:
             if msg.value.lower() in ("yes", "no"):
                 return self.handle_poll_vote(msg.value.lower(), username)
-            
+        
+        MAX_TITLE_LENGTH = 64
         if self.get_current_event().name in ("D1", "D2"):
             if msg.type == MessageType.IMAGE:
                 # User submitted draw image
-                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str:
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]) <= MAX_TITLE_LENGTH:
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
@@ -841,7 +845,7 @@ class ChampdUp(Game):
                         return pm
         if self.get_current_event().name in ("C1", "C2"):
             if msg.type == MessageType.IMAGE:
-                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str:
+                if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]) <= MAX_TITLE_LENGTH:
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
@@ -902,6 +906,7 @@ class ChampdUp(Game):
                 ))
         return pm
 
+# : Clean
 import atexit
 
 def clean_task_threads():
