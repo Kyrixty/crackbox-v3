@@ -175,7 +175,7 @@ const Lobby = () => {
   const { players } = useGameContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
   const im = isMobile();
-  const [play, {sound}] = useSound("/audio/lobby.wav", {
+  const [play, { sound }] = useSound("/audio/lobby.wav", {
     loop: true,
   });
 
@@ -671,7 +671,9 @@ export const ChampdUp = () => {
       />
       <Affix position={{ bottom: "5vh", right: "5vw" }}>
         <Group justify="center">
-          <AudioController />
+          <HostComponent>
+            <AudioController />
+          </HostComponent>
         </Group>
       </Affix>
       <ChatDrawer />

@@ -89,6 +89,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     IMAGE_SUBMITS = "IMAGE_SUBMITS"
     IMAGE_SWAP = "IMAGE_SWAP" # Not available in bonus round
     MATCHUP = "MATCHUP"
+    MATCHUP_START = "MATCHUP_START"
     MATCHUP_VOTE = "MATCHUP_VOTE"
     MATCHUP_RESULT = "MATCHUP_RESULT"
 
@@ -131,6 +132,7 @@ class ImageMatchup(BaseModel):
     right: Image
     rightVotes: set[str]
     initial_leader: str | None = None
+    started: bool = False # Voting is blocked if false
 
     def add_vote(self, username: str, target: Literal["left", "right"]):
         if not self.initial_leader:
@@ -151,6 +153,7 @@ class MatchupManager:
         self._idx = -1
         self.matchups: list[ImageMatchup] = []
         self.matchup_finished = False
+        self.in_grace = False
     
     def has_started(self) -> bool:
         return self._idx != -1
@@ -161,9 +164,18 @@ class MatchupManager:
     def finish_matchup(self) -> None:
         self.matchup_finished = True
     
+    def stop_grace(self) -> None:
+        self.in_grace = False
+    
+    def start_grace(self) -> None:
+        self.in_grace = True
+    
     def next_matchup(self):
         self._idx += 1
         self.matchup_finished = False
+    
+    def start_matchup(self) -> None:
+        self.matchups[self._idx].started = True
     
     def get_matchup(self):
         return self.matchups[self._idx]
@@ -374,6 +386,7 @@ class ChampdUp(Game):
         self.create_new_timer(self.iter_game_events)
         self.debug(f"Processing {event.name}..")
         if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
+            # When we implement bonus round ensure that we add V3 to msg handlers
             return await self.iter_game_events()
         if event.name == "L":
             self.leaderboard = sorted(self.get_player_list(), key=lambda p: p.points, reverse=True)
@@ -429,6 +442,20 @@ class ChampdUp(Game):
         for username in self.ws_map:
             value = predicate(username)
             await self.send(self.ws_map[username], MessageSchema(type=mType, value=predicate(username), author=0))
+        
+    async def grace_callback(self, event_idx: int | None = None) -> None:
+        if not self.matchup_manager.has_started() or self.matchup_manager.has_ended():
+            return
+        self.matchup_manager.stop_grace()
+        self.matchup_manager.start_matchup()
+        await self.filter_send(MessageSchema(
+            type=MessageType.MATCHUP_START,
+            value=None,
+            author=0,
+        ))
+        self.create_new_timer(self.iter_vote_round)
+        ends = (datetime.datetime.now() + self.get_public_field("vote_duration"))
+        self.timer.start(ends)
     
     async def iter_vote_round(self, event_idx: int | None = None):
         if not self.matchup_manager.matchups:
@@ -539,7 +566,7 @@ class ChampdUp(Game):
                     t0 = event_starts.timestamp()
                     t1 = winner_submitted.timestamp() - t0 
                     t2 = event_ends.timestamp() - t0
-                    if t1/t2 < 1/3:
+                if t1/t2 < 1/3:
                         # image was submitted during first third of the event
                         awards.append(Award(name=AwardName.FAST, bonus=fast_points))
                         award_points_to_artists(winner, fast_points)
@@ -573,18 +600,36 @@ class ChampdUp(Game):
             self.timer.callback = self.iter_vote_round
             return await self.timer.start(ends)
 
+        # Check to see if the current matchup has already been started. If it has, then this
+        # was called by the timer created in process_host_message@MATCHUP_START. This means that
+        # the host started the matchup before the timeout
 
+        # True IF the MM has started, we aren't in grace yet, and
+        # the current matchup hasn't started.
+        will_grace = self.matchup_manager.has_started() and \
+            self.matchup_manager.in_grace == False      and \
+            not self.matchup_manager.get_matchup().started
         self.matchup_manager.next_matchup()
         if self.matchup_manager.has_ended():
             self.timer.callback = self.iter_game_events
             return await self.iter_game_events()
-        self.timer.callback = self.iter_vote_round
-        ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("vote_duration")))
+        
+        callback = self.grace_callback if will_grace else self.iter_vote_round
+        callback_duration = 10 if will_grace else self.get_public_field("vote_duration")
+
+        self.timer.callback = callback
+        ends = (datetime.datetime.now() + datetime.timedelta(seconds=callback_duration))
         matchup = self.matchup_manager.get_matchup()
         def predicate(username: str) -> bool:
             default = {"matchup": self.matchup_manager.get_matchup(), "ends": ends}
             if self.get_current_event().name != "V2":
                 return default
+
+            # This may *look* like O(n^2) but it's really just O(n)
+            # since the outer loop is constant (I was just lazy and
+            # didn't write out two loops which actually is a good thing)
+            # Additionally, there can only ever be 2 artists behind an image
+            # as of 
             for i, artist_pool in enumerate((matchup.left.artists, matchup.right.artists)):
                 for artist in artist_pool:
                     if username == artist.username:
@@ -593,10 +638,11 @@ class ChampdUp(Game):
                         default["swap_candidates"] = self.player_img_store.get_plr_store(self.get_player(username).data, blacklist)
             return default
         
-        await self.predicate_send(
-            MessageType.MATCHUP,
-            predicate,
-        )
+        if will_grace:    
+            await self.predicate_send(
+                MessageType.MATCHUP,
+                predicate,
+            )
         await self.timer.start(ends)
     
     def get_current_event(self) -> Event:
@@ -807,8 +853,15 @@ class ChampdUp(Game):
                     return self.prepare_poll_broadcast(msg.value, username)
                 pm.add_broadcast(msg.type, msg.value, 0)
         if msg.type == MessageType.POLL_VOTE:
+            if not type(msg.value) == str:
+                return pm
             if msg.value.lower() in ("yes", "no"):
                 return self.handle_poll_vote(msg.value.lower(), username)
+        if self.get_current_event().name in ("V1", "V2"):
+            if msg.type == MessageType.MATCHUP_START and not self.matchup_manager.has_ended():
+                if self.matchup_manager.get_matchup().started:
+                    return pm
+                await self.grace_callback()
         return pm
     
     async def process_plyr_message(self, ws: WebSocket, msg: MessageSchema, username: str) -> ProcessedMessage:
@@ -841,7 +894,6 @@ class ChampdUp(Game):
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
                     if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
-                        self.debug("PUNGENT")
                         return pm
         if self.get_current_event().name in ("C1", "C2"):
             if msg.type == MessageType.IMAGE:
@@ -861,7 +913,7 @@ class ChampdUp(Game):
                         return pm
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
-                if not self.matchup_manager.has_started() or self.matchup_manager.matchup_finished:
+                if not self.matchup_manager.has_started() or not self.matchup_manager.get_matchup().started or self.matchup_manager.matchup_finished:
                     return pm
                 m = self.matchup_manager.get_matchup()
                 artists = [x.username for x in m.left.artists] + [x.username for x in m.right.artists]
