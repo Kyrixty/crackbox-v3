@@ -1,4 +1,5 @@
 import os
+import datetime
 
 from pydantic import BaseModel
 from colorama import init, Back
@@ -46,7 +47,7 @@ class Terminal:
         self.msgs.append(msg)
         data = self.MSG_TYPE_DATA_MAP[msg.type]
         color, label = data
-        print(f"{color}[{label}]{self.RESET} :: {msg.msg}")
+        print(f"{color}[{label}]{self.RESET}[{datetime.datetime.now().time().isoformat('seconds')}] :: {msg.msg}")
 
     def log(self, msg: str) -> None:
         if self.opts.can_log:
