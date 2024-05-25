@@ -60,9 +60,14 @@ export const ChatDrawer = () => {
     ],
   ]);
 
+  const getChatId = (): string => {
+    const id = "chat-msg-" + new Date().toISOString();
+    return id;
+  };
+
   const createServerText = (suffix: string) => {
     return (
-      <Text color="white">
+      <Text color="white" key={getChatId()}>
         {"[SERVER]"}: {suffix}
       </Text>
     );
@@ -74,7 +79,7 @@ export const ChatDrawer = () => {
     const prefix = sender === username ? to : from;
 
     return (
-      <Text color="red">
+      <Text color="red" key={getChatId()}>
         {`[${prefix}]`}: <span style={{ color: "white" }}>{msg}</span>
       </Text>
     );
@@ -127,7 +132,7 @@ export const ChatDrawer = () => {
   const resolveMsg = (m: RJsonMessage<MessageType>) => {
     if (m.author === 0) return createServerText(m.value);
     return (
-      <Text style={{ color: m.author.color }}>
+      <Text style={{ color: m.author.color }} key={getChatId()}>
         {m.author.username}: <span style={{ color: "#ffffff" }}>{m.value}</span>
       </Text>
     );
@@ -137,7 +142,7 @@ export const ChatDrawer = () => {
     let type = MessageType.CHAT;
     if (msg.startsWith("/pm ")) {
       type = MessageType.PM;
-    }
+    } 
     sendJsonMessage({ type, value: msg });
   }, [msg]);
 
@@ -146,11 +151,12 @@ export const ChatDrawer = () => {
     const author = players.find((p: Player) => p.username === username);
     if (!author) {
       setMsg("");
-      return};
+      return;
+    }
     if (!msg.startsWith("/pm ")) {
       setMsgs([
         ...msgs,
-        resolveMsg({author, ping: null, type: MessageType.CHAT, value: msg }),
+        resolveMsg({ author, ping: null, type: MessageType.CHAT, value: msg }),
       ]);
     }
     setMsg("");
@@ -168,7 +174,11 @@ export const ChatDrawer = () => {
     <>
       <div id="chat-toggle">
         {!opened && (
-          <ActionIcon color="white" variant="transparent" onClick={switchDrawer}>
+          <ActionIcon
+            color="white"
+            variant="transparent"
+            onClick={switchDrawer}
+          >
             <IconMessageCircle size={24} />
             {shouldNotify && <div id="chat-notification" />}
           </ActionIcon>
@@ -221,8 +231,9 @@ export const ChatDrawer = () => {
                     {players.map((p) => {
                       if (players.indexOf(p) > 6) return <></>;
                       return (
-                        <Tooltip label={p.username} openDelay={250}>
+                        <Tooltip key={"chat-drawer-tooltip-" + p.username} label={p.username} openDelay={250}>
                           <Avatar
+                            key={"chat-drawer-avatar-" + p.username}
                             size={AVATAR_SIZE}
                             style={{
                               cursor: "pointer",
