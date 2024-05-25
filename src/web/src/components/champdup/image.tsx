@@ -26,6 +26,33 @@ export interface ImageCandidateProps {
   totalVotes: number;
 }
 
+export interface HostMatchupControllerProps {
+  left: ImageCandidateProps;
+  right: ImageCandidateProps;
+}
+
+export const HostMatchupController = ({
+  left,
+  right,
+}: HostMatchupControllerProps) => {
+  return (
+    <Group justify="space-around">
+      <SimpleGrid cols={2}>
+        <HostImageCandidate
+          image={left.image}
+          votes={left.votes}
+          totalVotes={left.totalVotes}
+        />
+        <HostImageCandidate
+          image={right.image}
+          votes={right.votes}
+          totalVotes={right.totalVotes}
+        />
+      </SimpleGrid>
+    </Group>
+  );
+};
+
 export const HostImageCandidate = ({
   image,
   votes,
@@ -102,11 +129,13 @@ export const PlayerImageCandidate = ({
 export interface PlayerVoteControllerProps {
   matchup: MatchupContext;
   swapImages: SwapImage[];
+  inGrace: boolean;
 }
 
 export const PlayerVoteController = ({
   matchup,
   swapImages,
+  inGrace,
 }: PlayerVoteControllerProps) => {
   const [clicked, setClicked] = useState<TARGET>(null);
   const [canVote, setCanVote] = useState(false);
@@ -114,6 +143,8 @@ export const PlayerVoteController = ({
   const { currentEvent } = useChampdUpContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
   const [swapImgClicked, setSwapImgClicked] = useState<number | null>(null);
+
+  const started = !inGrace || matchup.started;
 
   useEffect(() => {
     setClicked(null);
@@ -132,11 +163,11 @@ export const PlayerVoteController = ({
 
   useEffect(() => {
     setSwapImgClicked(null);
-  }, [swapImages])
+  }, [swapImages]);
 
   const handleSwapClick = (hash: string, idx: number) => {
     sendJsonMessage({ type: MessageType.IMAGE_SWAP, value: hash });
-    setSwapImgClicked(idx)
+    setSwapImgClicked(idx);
   };
 
   return (
@@ -153,8 +184,17 @@ export const PlayerVoteController = ({
               swapImages.map((swap_img) => (
                 <Card
                   style={{ cursor: "pointer", color: "black" }}
-                  onClick={() => handleSwapClick(swap_img.image_hash, swapImages.indexOf(swap_img))}
-                  bg={swapImgClicked === swapImages.indexOf(swap_img) ? "gray" : "white"}
+                  onClick={() =>
+                    handleSwapClick(
+                      swap_img.image_hash,
+                      swapImages.indexOf(swap_img)
+                    )
+                  }
+                  bg={
+                    swapImgClicked === swapImages.indexOf(swap_img)
+                      ? "gray"
+                      : "white"
+                  }
                 >
                   <Card.Section>
                     <Image src={swap_img.image.dUri} w={100} />
@@ -165,22 +205,27 @@ export const PlayerVoteController = ({
           </Group>
         </Stack>
       )}
-      {canVote && (
-        <SimpleGrid cols={2}>
-          <PlayerImageCandidate
-            image={matchup.left}
-            name="left"
-            clicked={clicked}
-            clickCallback={setClicked}
-          />
-          <PlayerImageCandidate
-            image={matchup.right}
-            name="right"
-            clicked={clicked}
-            clickCallback={setClicked}
-          />
-        </SimpleGrid>
-      )}
+      {canVote &&
+        (started ? (
+          <SimpleGrid cols={2}>
+            <PlayerImageCandidate
+              image={matchup.left}
+              name="left"
+              clicked={clicked}
+              clickCallback={setClicked}
+            />
+            <PlayerImageCandidate
+              image={matchup.right}
+              name="right"
+              clicked={clicked}
+              clickCallback={setClicked}
+            />
+          </SimpleGrid>
+        ) : (
+          <Text style={{ textShadow: "2px 2px 1px black" }}>
+            Waiting for matchup to start..
+          </Text>
+        ))}
     </div>
   );
 };

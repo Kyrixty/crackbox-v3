@@ -19,6 +19,8 @@ export enum MessageType {
   MATCHUP_START = "MATCHUP_START",
   MATCHUP_VOTE = "MATCHUP_VOTE",
   MATCHUP_RESULT = "MATCHUP_RESULT",
+
+  FORCE_NEXT_MATCHUP = "FORCE_NEXT_MATCHUP",
 }
 
 export enum EventNames {
@@ -75,6 +77,7 @@ export type MatchupContext = {
   right: ImageData;
   rightVotes: string[];
   initial_leader: "left" | "right";
+  started: boolean;
 };
 
 export enum NotifyType {

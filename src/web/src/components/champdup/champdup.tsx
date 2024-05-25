@@ -51,7 +51,11 @@ import { Disconnected } from "@components/disconnected";
 import { CrackboxLogoGrid } from "@components/crackbox";
 import { EventComponent } from "./conditional";
 import { SketchPad } from "@components/sketch";
-import { HostImageCandidate, PlayerVoteController } from "./image";
+import {
+  HostImageCandidate,
+  HostMatchupController,
+  PlayerVoteController,
+} from "./image";
 import { Carousel } from "@mantine/carousel";
 import { darken } from "@mantine/core";
 import Autoplay from "embla-carousel-autoplay";
@@ -85,11 +89,13 @@ const PlayerCard = ({
   const dm =
     forceSmall || players.length > 6 || tablet ? AVATAR_SMALL : AVATAR_LARGE;
 
+  const key = "player-card-" + p.username;
+
   return (
     <Card
+      key={key}
       className="player-card"
       bg={colorOverride ? colorOverride : p.color}
-      key={p.username}
       w={dm}
       style={{
         boxShadow: `1px 1px 12px 4px ${
@@ -289,6 +295,7 @@ const RunningComponent = () => {
   const [playersReady, setPlayersReady] = useState<string[]>([]);
   const [eventEnds, setEventEnds] = useState<Date>(new Date());
   const [swapImages, setSwapImages] = useState<SwapImage[]>([]);
+  const [inGrace, setInGrace] = useState(false);
   const { setBg, setClassName } = useGameStyleContext();
   const autoplay = useRef(Autoplay({ delay: 4000 }));
 
@@ -348,6 +355,7 @@ const RunningComponent = () => {
         setMatchup(lastJsonMessage.value.matchup);
         setLeftVotes(lastJsonMessage.value.matchup.leftVotes);
         setRightVotes(lastJsonMessage.value.matchup.rightVotes);
+        setInGrace(lastJsonMessage.value.matchup.started);
       }
     }
 
@@ -369,6 +377,11 @@ const RunningComponent = () => {
       setMatchup(lastJsonMessage.value.matchup);
       setLeftVotes([]);
       setRightVotes([]);
+      setInGrace(lastJsonMessage.value.matchup.started);
+    }
+
+    if (lastJsonMessage.type === MessageType.MATCHUP_START) {
+      setInGrace(false);
     }
 
     if (lastJsonMessage.type == MessageType.MATCHUP_VOTE) {
@@ -401,6 +414,14 @@ const RunningComponent = () => {
       setClassName("");
     }
   }, [currentEvent]);
+
+  useEffect(() => {
+    if (matchup === null) {
+      console.log("No current matchup");
+      return;
+    }
+    console.log(inGrace ? "CURRENTLY IN GRACE" : "CURRENTLY NOT IN GRACE");
+  }, [inGrace]);
 
   return (
     <div id="running-root" className="centered">
@@ -453,20 +474,18 @@ const RunningComponent = () => {
       <EventComponent name={[EventNames.FirstVote, EventNames.SecondVote]}>
         <HostComponent>
           {matchup !== null && (
-            <Group justify="space-around">
-              <SimpleGrid cols={2}>
-                <HostImageCandidate
-                  image={matchup.left}
-                  votes={leftVotes}
-                  totalVotes={leftVotes.length + rightVotes.length}
-                />
-                <HostImageCandidate
-                  image={matchup.right}
-                  votes={rightVotes}
-                  totalVotes={leftVotes.length + rightVotes.length}
-                />
-              </SimpleGrid>
-            </Group>
+            <HostMatchupController
+              left={{
+                image: matchup.left,
+                votes: leftVotes,
+                totalVotes: leftVotes.length + rightVotes.length,
+              }}
+              right={{
+                image: matchup.right,
+                votes: rightVotes,
+                totalVotes: leftVotes.length + rightVotes.length,
+              }}
+            />
           )}
           <Conditional condition={matchup === null}>
             <Text style={{ textShadow: "2px 2px 1px black" }}>
@@ -476,7 +495,11 @@ const RunningComponent = () => {
         </HostComponent>
         <PlayerComponent>
           {matchup !== null && (
-            <PlayerVoteController swapImages={swapImages} matchup={matchup} />
+            <PlayerVoteController
+              inGrace={inGrace}
+              swapImages={swapImages}
+              matchup={matchup}
+            />
           )}
           {matchup === null && (
             <Text style={{ textShadow: "2px 2px 1px black" }}>
