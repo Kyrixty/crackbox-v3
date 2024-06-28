@@ -32,7 +32,7 @@ DESCRIPTORS = [
   "Live-Action Roleplayer",
   "Enjoys pegging (receiving end)",
   "❄️",
-  "Views gay porn",
+  "Finds political insights through gay porn mediums",
   "#LONGLIVEJANGOWU",
   "Sober",
   "Slightly larger than average boner",
@@ -51,9 +51,15 @@ DESCRIPTORS = [
   "Goblin",
   "Faggot",
   "Retard",
+  "Possesses a FUPA",
+  "Gives first 90% of head",
+  "Gives last 10% of head",
+  "Eats raisins for the 'texture'",
+  "Mortgages hotdogs",
+  "Loves Romanians",
   "👨🏿",
   "🍆🌋",
-];
+]
 
 
 def create_player(username: str, points: int, color: str, avatar_data_url: str = "", is_host: bool = False) -> Player:
