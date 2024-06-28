@@ -178,20 +178,27 @@ const AudioController = () => {
 };
 
 const Lobby = () => {
-  const { players } = useGameContext();
+  const { gameId, players } = useGameContext();
   const { sendJsonMessage } = useMessenger<MessageType>();
+  const { isHost } = useUserContext();
   const im = isMobile();
-  const [play, { sound }] = useSound("/audio/lobby.wav", {
-    loop: true,
-  });
 
   if (players.length === 0) {
     return (
       <div id="lobby-root" className="centered">
         <Group justify="center">
-          <Text color="white" style={{ textShadow: "2px 2px 1px black" }}>
-            <b>No players yet, share the game code with your friends!</b>
-          </Text>
+          <Stack gap="md" align="center">
+            {isHost && (
+              <Title
+                style={{ textShadow: "3px 3px 1px black", color: "white" }}
+              >
+                {gameId}
+              </Title>
+            )}
+            <Text color="white" style={{ textShadow: "2px 2px 1px black" }}>
+              <b>No players yet, share the game code with your friends!</b>
+            </Text>
+          </Stack>
         </Group>
       </div>
     );
@@ -225,6 +232,11 @@ const Lobby = () => {
               );
             })}
           </SimpleGrid>
+          {isHost && (
+            <Title style={{ zIndex: 999, textShadow: "3px 3px 1px black", color: "white" }}>
+              {gameId}
+            </Title>
+          )}
           <HostComponent>
             <Button
               onClick={() =>
