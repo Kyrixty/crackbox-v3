@@ -58,6 +58,7 @@ DESCRIPTORS = [
   "Mortgages hotdogs",
   "Loves Romanians",
   "Suffers from male-pattern baldness",
+  "Speaks hebrew when eating pussy",
   "👨🏿",
   "🍆🌋",
 ]
