@@ -57,6 +57,7 @@ DESCRIPTORS = [
   "Eats raisins for the 'texture'",
   "Mortgages hotdogs",
   "Loves Romanians",
+  "Suffers from male-pattern baldness",
   "👨🏿",
   "🍆🌋",
 ]
