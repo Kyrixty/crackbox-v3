@@ -6,6 +6,7 @@ import {
 } from "@lib/champdup";
 import { useMessenger } from "@lib/context/ws";
 import {
+  Box,
   Card,
   Group,
   Image,
@@ -13,12 +14,20 @@ import {
   Stack,
   Text,
   Title,
+  Transition,
 } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
 import { useEffect, useState } from "react";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
 import { useChampdUpContext } from "@lib/context/champdup";
+import whoosh1 from "/audio/whoosh1.mp3";
+import useSound from "use-sound";
+import { randomIntFromInterval } from "@utils/rand";
+import { useGameStyleContext } from "@lib/context/game";
+
+const VOLUME = 0.1;
+const DURATION = 1000; //ms
 
 export interface ImageCandidateProps {
   image?: ImageData;
@@ -35,21 +44,79 @@ export const HostMatchupController = ({
   left,
   right,
 }: HostMatchupControllerProps) => {
+  const [mIdx, setmIdx] = useState(-1);
+  const [leftMounted, setLeftMounted] = useState(false);
+  const [rightMounted, setRightMounted] = useState(false);
+  const [playWhoosh1] = useSound(whoosh1, { volume: VOLUME });
+  const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
+
+  const onEnter = () => {
+    const whooshes = [playWhoosh1]; // in case we add more
+    const idx = randomIntFromInterval(0, whooshes.length - 1);
+    whooshes[idx]();
+  };
+
+  const onLeftEntered = () => {
+    console.log("MOUNTING RIGHT");
+    setTimeout(() => setRightMounted(true), DURATION);
+  };
+
+  const onRightExited = () => {
+    // kill grace period
+  };
+
+  useEffect(() => {
+    if (lastJsonMessage === null) return;
+    if (lastJsonMessage.type === MessageType.MATCHUP) {
+      if (lastJsonMessage.value.idx === mIdx) return;
+      setmIdx(lastJsonMessage.value.idx);
+      setLeftMounted(false);
+      setRightMounted(false);
+      setTimeout(() => setLeftMounted(true), DURATION * 2);
+    }
+  }, [lastJsonMessage]);
+
   return (
-    <Group justify="space-around">
-      <SimpleGrid cols={2}>
-        <HostImageCandidate
-          image={left.image}
-          votes={left.votes}
-          totalVotes={left.totalVotes}
-        />
-        <HostImageCandidate
-          image={right.image}
-          votes={right.votes}
-          totalVotes={right.totalVotes}
-        />
-      </SimpleGrid>
-    </Group>
+    <Box w="100vw" p="20vw">
+      <Group justify={"space-between"}>
+        <Transition
+          mounted={leftMounted}
+          transition="slide-right"
+          duration={DURATION}
+          onEnter={onEnter}
+          onEntered={onLeftEntered}
+          keepMounted
+        >
+          {(styles) => (
+            <Box style={{ ...styles }}>
+              <HostImageCandidate
+                image={left.image}
+                votes={left.votes}
+                totalVotes={left.totalVotes}
+              />
+            </Box>
+          )}
+        </Transition>
+        <Transition
+          mounted={rightMounted}
+          transition="slide-left"
+          duration={DURATION}
+          onEnter={onEnter}
+          onExited={onRightExited}
+          keepMounted
+        >
+          {(styles) => (
+            <Box style={{ ...styles }}>
+              <HostImageCandidate
+                image={right.image}
+                votes={right.votes}
+                totalVotes={right.totalVotes}
+              />
+            </Box>
+          )}
+        </Transition>
+      </Group>
+    </Box>
   );
 };
 

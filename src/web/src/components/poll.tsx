@@ -12,6 +12,13 @@ import {
 } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
 import { isMobile } from "@utils/device";
+import amogus from "/audio/amongus.wav";
+import sponsor from "/audio/flipside_sponsor.wav";
+import useSound from "use-sound";
+import { useUserContext } from "@lib/context/user";
+import { randomIntFromInterval } from "@utils/rand";
+
+const VOLUME = 0.1;
 
 export interface PollProps {
   poll_start_signal?: string;
@@ -30,11 +37,14 @@ export const Poll = (props: PollProps) => {
   const [pollEnds, setPollEnds] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
   const { lastJsonMessage, sendJsonMessage } = useMessenger();
+  const { isHost } = useUserContext();
   const total =
     pollData !== null ? pollData.yes.length + pollData.no.length : 0;
   const yesPct = pollData !== null ? pollData.yes.length / total : 0;
   const noPct = pollData !== null ? pollData.no.length / total : 0;
   const im = isMobile();
+  const [amongusPlay] = useSound(amogus, { volume: VOLUME });
+  const [sponsorPlay] = useSound(sponsor, { volume: VOLUME });
 
   const _clearPollData = () => {
     setPollData(null);
@@ -64,6 +74,13 @@ export const Poll = (props: PollProps) => {
       // half a second early of poll duration
       const earlyEnds = ends.getTime() - now.getTime() - 500;
       if (now >= ends) return;
+      if (isHost) {
+        const audios = [sponsorPlay, amongusPlay];
+        const idx = randomIntFromInterval(0, audios.length - 1);
+        console.log(idx);
+        const audio = audios[idx];
+        audio();
+      }
       setPollEnds(earlyEnds);
       setTimeout(clearPoll, earlyEnds);
       setPollData(lastJsonMessage.value);

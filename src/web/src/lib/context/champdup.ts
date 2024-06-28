@@ -9,6 +9,8 @@ export enum NotifyType {
 
 export type ChampdUpContext = {
   currentEvent: Event | null;
+  previousEvent: Event | null;
+  previousEventData: any;
   currentEventData: any;
   setCurrentEvent: (e: Event | null) => void;
   setCurrentEventData: (d: any) => void;
@@ -17,6 +19,8 @@ export type ChampdUpContext = {
 export const useChampdUpContext = create<ChampdUpContext>()((set) => ({
   currentEvent: null,
   currentEventData: null,
-  setCurrentEvent: (e: Event | null) => set(() => ({currentEvent: e})),
+  previousEvent: null,
+  previousEventData: null,
+  setCurrentEvent: (e: Event | null) => set(() => ({ currentEvent: e})),
   setCurrentEventData: (d: any) => set(() => ({currentEventData: d})),
 }));

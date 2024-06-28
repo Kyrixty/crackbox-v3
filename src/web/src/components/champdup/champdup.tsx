@@ -65,11 +65,14 @@ import { useTimer } from "react-timer-hook";
 import { randomIntFromInterval } from "@utils/rand";
 import { useSound } from "use-sound";
 import lobbyTheme from "/audio/lobby.wav";
+import drawTheme from "/audio/draw-1.mp3";
+import vote3Theme from "/audio/vote-3.mp3";
+import longNightTheme from "/audio/long-night.mp3";
 import { PlayFunction } from "use-sound/dist/types";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
-const VOLUME = 0.25;
+const VOLUME = 0.1;
 
 const PlayerCard = ({
   p,
@@ -144,15 +147,37 @@ type AudioControls = {
 };
 
 const AudioController = () => {
+  const { currentEvent } = useChampdUpContext();
   const [enabled, setEnabled] = useState(false);
   const [current, setCurrent] = useState<AudioControls | null>(null);
+  const [previous, setPrevious] = useState<AudioControls | null>(null);
   const [lobbyPlay, { stop, sound }] = useSound(lobbyTheme, {
     volume: VOLUME,
     loop: true,
   });
+  const [votePlay, { stop: voteStop, sound: voteSound }] = useSound(
+    vote3Theme,
+    {
+      volume: VOLUME,
+      loop: true,
+    }
+  );
+  const [drawPlay, { stop: drawStop, sound: drawSound }] = useSound(drawTheme, {
+    volume: VOLUME,
+    loop: true,
+  });
+  const [endPlay, {stop: endStop, sound: endSound} ] = useSound(longNightTheme, {
+    volume: VOLUME,
+    loop: true,
+  })
   const { status } = useGameContext();
 
-  useEffect(() => {
+  const resolveSound = () => {
+    const stopIfCurrentExists = () => {
+      if (current) {
+        current.stop();
+      }
+    };
     if (!enabled) {
       if (current === null) return;
       current.stop();
@@ -164,7 +189,30 @@ const AudioController = () => {
       lobbyPlay();
       sound.fade(0, VOLUME, 1000);
     }
-  }, [enabled]);
+    if (
+      currentEvent &&
+      [EventNames.FirstVote, EventNames.SecondVote, EventNames.FirstDraw, EventNames.SecondDraw].includes(currentEvent.name)
+    ) {
+      if (current && current.play === votePlay) return;
+      stopIfCurrentExists();
+      setCurrent({ play: votePlay, stop: voteStop, sound: voteSound });
+      votePlay();
+      voteSound.fade(0, VOLUME, 1000);
+    }
+    if (currentEvent && currentEvent.name === EventNames.Leaderboard && status !== GameStatus.WAITING) {
+      stopIfCurrentExists();
+      if (current && current.play === endPlay) return;
+      setCurrent({play: endPlay, stop: endStop, sound: endSound});
+      endPlay();
+    }
+  };
+
+  useEffect(resolveSound, [enabled]);
+
+  useEffect(() => {
+    if (!currentEvent) return;
+    resolveSound();
+  }, [currentEvent]);
 
   return (
     <ActionIcon
@@ -183,18 +231,38 @@ const Lobby = () => {
   const { isHost } = useUserContext();
   const im = isMobile();
 
+  const GameIdTitle = () => {
+    return (
+      <>
+        {isHost && (
+          <Title
+          order={1}
+            style={{
+              zIndex: 999,
+              color: "white",
+              fontSize: 50,
+              textShadow: "-2px -2px black",
+              background: "linear-gradient(90deg, rgba(255,134,17,1) 0%, rgba(0,0,0,1) 39%, rgba(255,0,0,1) 100%)",
+              backgroundSize: "200% auto",
+              backgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              WebkitBackgroundClip: "text",
+              animation: "shine 1s linear infinite"
+            }}
+          >
+            {gameId}
+          </Title>
+        )}
+      </>
+    );
+  };
+
   if (players.length === 0) {
     return (
       <div id="lobby-root" className="centered">
         <Group justify="center">
           <Stack gap="md" align="center">
-            {isHost && (
-              <Title
-                style={{ textShadow: "3px 3px 1px black", color: "white" }}
-              >
-                {gameId}
-              </Title>
-            )}
+            <GameIdTitle />
             <Text color="white" style={{ textShadow: "2px 2px 1px black" }}>
               <b>No players yet, share the game code with your friends!</b>
             </Text>
@@ -232,11 +300,7 @@ const Lobby = () => {
               );
             })}
           </SimpleGrid>
-          {isHost && (
-            <Title style={{ zIndex: 999, textShadow: "3px 3px 1px black", color: "white" }}>
-              {gameId}
-            </Title>
-          )}
+          <GameIdTitle />
           <HostComponent>
             <Button
               onClick={() =>
@@ -288,11 +352,13 @@ const RUNNING_HOST_TEXTS = [
   "I think Jong Zho and Jamie Yim have conspired to take over the clan",
   "Sponsored by the CCP",
   "If you're seeing this message, the game broke :(",
+  "You keep me up in more ways than one"
 ];
 
 const RunningComponent = () => {
   const { currentEvent, currentEventData } = useChampdUpContext();
   const { players } = useGameContext();
+  const {isHost} = useUserContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
   const [matchup, setMatchup] = useState<MatchupContext | null>(null);
   const [matchupEnds, setMatchupEnds] = useState<Date | null>(null);
@@ -421,7 +487,15 @@ const RunningComponent = () => {
         "white radial-gradient(#cbcbcb 40%, transparent 40%) 0px 0px/50px 50px round"
       );
       setClassName("translate-background-upper-right");
-    } else {
+    } 
+    else if ([EventNames.FirstVote, EventNames.SecondVote].includes(currentEvent.name)) {
+      if (isHost) {
+
+        setBg("black url('/imgs/crackbox-arena.gif') 0px 0px/cover round");
+        setClassName("game-vote-class")
+      }
+    }
+    else {
       setBg("black");
       setClassName("");
     }

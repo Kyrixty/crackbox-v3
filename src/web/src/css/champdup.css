@@ -10,30 +10,41 @@
 }
 
 #lobby-root {
-    width: 100vw;
+  width: 100vw;
 }
 
 #p-image-candidate {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 #leaderboard-root {
-    width: 100vw;
-    color: white;
+  width: 100vw;
+  color: white;
 }
 
 .translate-background-upper-right {
-    animation: move_bg 2s linear infinite;
+  animation: move_bg 2s linear infinite;
+}
+
+.game-vote-class {
+    background-size: cover;
+    background-repeat: round;
 }
 
 @keyframes move_bg {
-    0% {
-        transform: rotate(10deg) scale(2);
-        background-position: 0 0;
-    }
+  0% {
+    transform: rotate(10deg) scale(2);
+    background-position: 0 0;
+  }
 
-    100% {
-        transform: rotate(10deg) scale(2);
-        background-position: 50px -50px;
-    }
+  100% {
+    transform: rotate(10deg) scale(2);
+    background-position: 50px -50px;
+  }
+}
+
+@keyframes shine {
+  100% {
+    background-position: 200% center;
+  }
 }

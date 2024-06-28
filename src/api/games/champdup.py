@@ -449,7 +449,7 @@ class ChampdUp(Game):
         self.matchup_manager.disable_voting()
         ends = datetime.datetime.now() + datetime.timedelta(seconds=IVR_TIMEOUT)
         self.timer.callback = self.iter_vote_round
-        await self.filter_send(MessageSchema(type=MessageType.MATCHUP, value={"matchup": self.matchup_manager.get_matchup()}, author=0))
+        await self.filter_send(MessageSchema(type=MessageType.MATCHUP, value={"matchup": self.matchup_manager.get_matchup(), "idx": self.matchup_manager._idx}, author=0))
         await self.timer.start(ends, IVRMode.Normal)
     
     async def iter_vote_round(self, mode: IVRMode = IVRMode.Grace):
@@ -598,7 +598,7 @@ class ChampdUp(Game):
         ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("vote_duration")))
         matchup = self.matchup_manager.get_matchup()
         def predicate(username: str) -> bool:
-            default = {"matchup": self.matchup_manager.get_matchup(), "ends": ends}
+            default = {"matchup": self.matchup_manager.get_matchup(), "idx": self.matchup_manager._idx, "ends": ends}
             if self.get_current_event().name != "V2":
                 return default
             for i, artist_pool in enumerate((matchup.left.artists, matchup.right.artists)):

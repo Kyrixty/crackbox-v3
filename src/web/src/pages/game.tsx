@@ -8,10 +8,11 @@ import {
 } from "@lib/context/game";
 import { useUserContext } from "@lib/context/user";
 import { useMessenger, JsonMessage, RJsonMessage } from "@lib/context/ws";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ReadyState } from "react-use-websocket";
 import { useWebSocket } from "react-use-websocket/dist/lib/use-websocket";
 import "@/css/game.css";
+import { Box } from "@mantine/core";
 
 export const GamePage = () => {
   const g = useMessenger<DefaultMessageType>();
@@ -19,15 +20,17 @@ export const GamePage = () => {
     useGameContext();
   const { isHost, ticket } = useUserContext();
   const { bg, className } = useGameStyleContext();
+  const defaultStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+  };
+  const [style, setStyle] = useState<React.CSSProperties>(defaultStyle)
 
-  const style: React.CSSProperties = {
-        background: bg,
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-      }
+  useEffect(() => setStyle({position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", background: bg, backgroundSize: "cover", backgroundRepeat: "round" }), [bg]);
+
 
   // : RESOLVERS
 
@@ -107,7 +110,7 @@ export const GamePage = () => {
 
   return (
     <div id="game-page-root">
-      <div className={className} id="game-page-bg" style={style}></div>
+      <Box className={className} id="game-page-bg" style={{...style, backgroundSize: "cover", backgroundRepeat: "round"}}></Box>
       {RESOLVE_PROPER_GAME()}
     </div>
   );
