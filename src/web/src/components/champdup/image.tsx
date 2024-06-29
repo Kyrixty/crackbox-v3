@@ -25,6 +25,8 @@ import whoosh1 from "/audio/whoosh1.mp3";
 import useSound from "use-sound";
 import { randomIntFromInterval } from "@utils/rand";
 import { useGameStyleContext } from "@lib/context/game";
+import { getColorRepresentation } from "@utils/color";
+import ProgressBar from "@ramonak/react-progress-bar";
 
 const VOLUME = 0.1;
 const DURATION = 1000; //ms
@@ -33,6 +35,10 @@ export interface ImageCandidateProps {
   image?: ImageData;
   votes: string[];
   totalVotes: number;
+}
+
+export interface HostImageCandidateProps extends ImageCandidateProps {
+  isLeft?: boolean;
 }
 
 export interface HostMatchupControllerProps {
@@ -50,15 +56,22 @@ export const HostMatchupController = ({
   const [playWhoosh1] = useSound(whoosh1, { volume: VOLUME });
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
 
+  const [leftImg, setLeftImg] = useState<ImageData | undefined>();
+  const [rightImg, setRightImg] = useState<ImageData | undefined>();
+
+  const handleNewMatchup = (leftImage: ImageData, rightImage: ImageData) => {
+    setLeftImg(leftImage);
+    setLeftMounted(true);
+    setTimeout(() => {
+      setRightImg(rightImage);
+      setRightMounted(true);
+    }, DURATION * 2);
+  };
+
   const onEnter = () => {
     const whooshes = [playWhoosh1]; // in case we add more
     const idx = randomIntFromInterval(0, whooshes.length - 1);
     whooshes[idx]();
-  };
-
-  const onLeftEntered = () => {
-    console.log("MOUNTING RIGHT");
-    setTimeout(() => setRightMounted(true), DURATION);
   };
 
   const onRightExited = () => {
@@ -72,7 +85,31 @@ export const HostMatchupController = ({
       setmIdx(lastJsonMessage.value.idx);
       setLeftMounted(false);
       setRightMounted(false);
-      setTimeout(() => setLeftMounted(true), DURATION * 2);
+      setTimeout(
+        () =>
+          handleNewMatchup(
+            lastJsonMessage.value.matchup.left,
+            lastJsonMessage.value.matchup.right
+          ),
+        DURATION * 2
+      );
+    }
+    if (lastJsonMessage.type === MessageType.IMAGE_SWAP) {
+      const target: "left" | "right" = lastJsonMessage.value.target;
+      if (target === "left") {
+        setLeftMounted(false);
+        setTimeout(() => {
+          setLeftImg(lastJsonMessage.value.matchup.left);
+          setLeftMounted(true);
+        }, DURATION * 2);
+      }
+      if (target === "right") {
+        setRightMounted(false);
+        setTimeout(() => {
+          setRightImg(lastJsonMessage.value.matchup.right);
+          setRightMounted(true);
+        }, DURATION * 2);
+      }
     }
   }, [lastJsonMessage]);
 
@@ -84,31 +121,30 @@ export const HostMatchupController = ({
           transition="slide-right"
           duration={DURATION}
           onEnter={onEnter}
-          onEntered={onLeftEntered}
-          keepMounted
         >
           {(styles) => (
             <Box style={{ ...styles }}>
               <HostImageCandidate
-                image={left.image}
+                isLeft
+                image={leftImg}
                 votes={left.votes}
                 totalVotes={left.totalVotes}
               />
             </Box>
           )}
         </Transition>
+        {!leftMounted && <Box miw={300} />}
         <Transition
           mounted={rightMounted}
           transition="slide-left"
           duration={DURATION}
           onEnter={onEnter}
           onExited={onRightExited}
-          keepMounted
         >
           {(styles) => (
             <Box style={{ ...styles }}>
               <HostImageCandidate
-                image={right.image}
+                image={rightImg}
                 votes={right.votes}
                 totalVotes={right.totalVotes}
               />
@@ -124,27 +160,43 @@ export const HostImageCandidate = ({
   image,
   votes,
   totalVotes,
-}: ImageCandidateProps) => {
+  isLeft,
+}: HostImageCandidateProps) => {
   if (!image) return <></>;
 
   useEffect(() => {
     console.log(votes);
   }, [votes]);
 
+  const skew = isLeft ? "-10deg" : "10deg";
+  const votesPct = (votes.length / totalVotes) * 100;
+
+  const titleBg = `linear-gradient(90deg, ${getColorRepresentation(
+    votesPct
+  )} ${votesPct}%, rgba(40,40,40,0) ${votesPct}%)`;
+  const order = image.title.length > 40 ? 4 : 3;
+
   return (
-    <Card shadow="lg" radius="sm" bg="white" w={300}>
-      <Group justify="center">
-        <Stack>
-          <Text>
-            {votes.length} / {totalVotes}
-          </Text>
-          <Text>{image.title}</Text>
-        </Stack>
-      </Group>
-      <Card.Section>
-        <Image src={image.dUri} />
-      </Card.Section>
-    </Card>
+    <Stack align="center" w={300} gap="lg">
+      <Box p={20} bg="black" style={{ transform: `skewX(${skew})` }}>
+        <Title c="white" order={order}>
+          {image.title}
+        </Title>
+        {/* <Box p={5} bg={titleBg} w="100%" /> */}
+        <ProgressBar
+          completed={votesPct ? votesPct : 0}
+          isLabelVisible={false}
+          labelColor="#ffffff"
+          baseBgColor="rgb(40,40,40)"
+          bgColor={getColorRepresentation(votesPct)}
+          transitionDuration="0.25s"
+          maxCompleted={100}
+          borderRadius={"0px"}
+        />
+      </Box>
+      <Group justify="center"></Group>
+      <Image src={image.dUri} w={300} />
+    </Stack>
   );
 };
 
@@ -184,7 +236,7 @@ export const PlayerImageCandidate = ({
       onClick={handleClick}
     >
       <Group justify="center">
-        <Text>{image.title}</Text>
+        <Text c="black">{image.title}</Text>
       </Group>
       <Card.Section>
         <Image id="p-image-candidate" src={image.dUri} />
@@ -274,7 +326,7 @@ export const PlayerVoteController = ({
       )}
       {canVote &&
         (started ? (
-          <SimpleGrid cols={2}>
+          <Group justify="space-around"> 
             <PlayerImageCandidate
               image={matchup.left}
               name="left"
@@ -287,7 +339,7 @@ export const PlayerVoteController = ({
               clicked={clicked}
               clickCallback={setClicked}
             />
-          </SimpleGrid>
+          </Group>
         ) : (
           <Text style={{ textShadow: "2px 2px 1px black" }}>
             Waiting for matchup to start..

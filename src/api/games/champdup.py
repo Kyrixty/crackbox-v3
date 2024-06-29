@@ -867,7 +867,9 @@ class ChampdUp(Game):
                     return self.prepare_sponsor_msg()
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
-                pm.add_broadcast(msg.type, msg.value, self.get_player(username).data)
+                text: str = msg.value
+                if not text.startswith("/"):
+                    pm.add_broadcast(msg.type, msg.value, self.get_player(username).data)
         if msg.type == MessageType.POLL_VOTE:
             if msg.value.lower() in ("yes", "no"):
                 return self.handle_poll_vote(msg.value.lower(), username)
@@ -885,11 +887,11 @@ class ChampdUp(Game):
                     self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
-                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
                     if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
+                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
         if self.get_current_event().name in ("C1", "C2"):
             if msg.type == MessageType.IMAGE:
                 if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]) <= MAX_TITLE_LENGTH:
@@ -901,11 +903,11 @@ class ChampdUp(Game):
                     self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
                     self.ready_manager.set_ready(self.get_player(username).data)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
-                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
                     if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
+                    pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
         if self.get_current_event().name in ("V1", "V2"):
             if msg.type == MessageType.MATCHUP_VOTE:
                 if not self.matchup_manager.has_started() or not self.matchup_manager.voting_enabled:
@@ -926,6 +928,7 @@ class ChampdUp(Game):
                 if not self.matchup_manager.has_started() or self.ivr_mode in (None, IVRMode.Result):
                     return pm
                 # Figure out if they're in the matchup
+                
                 matchup = self.matchup_manager.get_matchup()
                 p = self.get_player(username).data
                 is_left = p in matchup.left.artists

@@ -18,7 +18,7 @@ interface SponsorBannerProps {
 }
 
 export const SponsorBanner = ({mounted}: SponsorBannerProps) => {
-  const [play] = useSound(sponsor, { volume: 0.3 });
+  const [play] = useSound(sponsor, { volume: 0.6 });
 
   useEffect(() => {
     if (mounted) {
@@ -63,7 +63,8 @@ export const SponsorBanner = ({mounted}: SponsorBannerProps) => {
                 >
                   {(styles) => (
                     <Title style={{ ...styles, textShadow: "2px 2px 1px black" }} c="black">
-                      <Group>
+                      <Group align="center">
+                        <Image src="/imgs/keeps-logo.png" w={100} />
                         Use code <Title c="lime">FLIPSIDE</Title>for 10% off!
                       </Group>
                     </Title>

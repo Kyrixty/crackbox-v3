@@ -13,13 +13,15 @@ import {
 import { MessageType } from "@lib/champdup";
 import { isMobile } from "@utils/device";
 import amogus from "/audio/amongus.wav";
+import fnaf2hallway from "/audio/fnaf2-hallway.mp3";
 import sponsor from "/audio/flipside_sponsor.wav";
 import useSound from "use-sound";
 import { useUserContext } from "@lib/context/user";
 import { randomIntFromInterval } from "@utils/rand";
 import { SponsorBanner } from "./champdup/sponsor";
+import { getSounds } from "@utils/sound";
 
-const VOLUME = 0.1;
+const VOLUME = 0.5;
 
 export interface PollProps {
   poll_start_signal?: string;
@@ -44,7 +46,7 @@ export const Poll = (props: PollProps) => {
   const yesPct = pollData !== null ? pollData.yes.length / total : 0;
   const noPct = pollData !== null ? pollData.no.length / total : 0;
   const im = isMobile();
-  const [amongusPlay] = useSound(amogus, { volume: VOLUME });
+  const pollSounds = getSounds([amogus, fnaf2hallway], VOLUME);
   const [sponsorPlay] = useSound(sponsor, { volume: VOLUME });
   const [sponsorActive, setSponsorActive] = useState(false);
 
@@ -83,7 +85,8 @@ export const Poll = (props: PollProps) => {
       const earlyEnds = ends.getTime() - now.getTime() - 500;
       if (now >= ends) return;
       if (isHost) {
-        amongusPlay();
+        const [play] = pollSounds[randomIntFromInterval(0, pollSounds.length - 1)];
+        play();
       }
       setPollEnds(earlyEnds);
       setTimeout(clearPoll, earlyEnds);

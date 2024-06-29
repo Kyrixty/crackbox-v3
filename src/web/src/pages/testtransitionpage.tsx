@@ -31,9 +31,21 @@ export const TestTransitionPage = () => {
     console.log("Killing grace period")
   }
 
+  const toggleLeft = () => {
+    setLMounted(false);
+    setTimeout(() => setLMounted(true), DURATION);
+  }
+
+  const toggleRight = () => {
+    setRMounted(false);
+    setTimeout(() => setRMounted(true), DURATION);
+  }
+
   return (
     <Box w="100vw" p="20vw">
       <Button onClick={mount}>Start test</Button>
+      <Button onClick={toggleLeft}>Toggle left</Button>
+      <Button onClick={toggleRight}>Toggle right</Button>
       <Group justify={"space-between"}>
         <Transition
           mounted={Lmounted}

@@ -75,7 +75,7 @@ const SketchPadCounterModal = ({ opened, open, close, imgData }: SPCMProps) => {
   return (
     <Modal opened={opened} onClose={close}>
       <Stack align="center">
-        <Title>Counter this champion!</Title>
+        <Title order={4}>Counter this champion!</Title>
         <Card bg="white">
           <Card.Section>
             <Image src={imgData.dUri} w={150} />
@@ -230,12 +230,12 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const ReminderTimerComponent = ({expiryTimestamp}: {expiryTimestamp: Date | null}) => {
     if (!expiryTimestamp) return <></>;
 
-    const externalPlay = useMemo(() => () => {
+    const externalPlay = () => {
       if (!hasSubmitted) {
         const [play] = reminderSounds[randomIntFromInterval(0, reminderSounds.length - 1)];
         play();
       }
-    }, [hasSubmitted]);
+    }
 
     useTimer({expiryTimestamp, onExpire: () => {
       if (!hasSubmitted) {
