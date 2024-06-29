@@ -49,12 +49,20 @@ import { ImageData } from "@lib/champdup";
 import { useDisclosure } from "@mantine/hooks";
 import { useMessenger } from "@lib/context/ws";
 import { showNotification } from "@mantine/notifications";
-import { NotifyType } from "@lib/context/champdup";
+import { NotifyType, useChampdUpContext } from "@lib/context/champdup";
+import { useTimer } from "react-timer-hook";
+import reminder0 from "/audio/reminder0.m4a";
+import reminder1 from "/audio/reminder1.m4a";
+import reminder2 from "/audio/reminder2.m4a";
+import { getSounds } from "@utils/sound";
+import { randomIntFromInterval } from "@utils/rand";
 
 type HexColor = React.CSSProperties["color"];
 type Change = ChangeEvent<HTMLInputElement>;
 type PathStream = PathData[] | string | null;
 export type DrawAction = "DRAW" | "UNDO" | "CLEAR";
+
+const VOLUME = 0.1;
 
 interface SPCMProps {
   opened: boolean;
@@ -77,6 +85,31 @@ const SketchPadCounterModal = ({ opened, open, close, imgData }: SPCMProps) => {
       <Group justify="center">
         <Title>{imgData.title}</Title>
       </Group>
+    </Modal>
+  );
+};
+
+interface SPRMProps {
+  opened: boolean;
+  close: () => void;
+  submit: () => void;
+  setTitle: (t: string) => void;
+}
+const SketchPadReminderModal = (props: SPRMProps) => {
+  return (
+    <Modal opened={props.opened} onClose={props.close}>
+      <Stack>
+        <Title>Submit your Champion!</Title>
+        <Group justify="center" align="center">
+          <TextInput
+            placeholder="Enter your title here"
+            onChange={(e) => props.setTitle(e.currentTarget.value)}
+          />
+          <Button onClick={props.submit} fullWidth color="green">
+            Submit
+          </Button>
+        </Group>
+      </Stack>
     </Modal>
   );
 };
@@ -162,11 +195,19 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const [opened, { open, close }] = useDisclosure(true);
   const [bgDataURI, setBgDataURI] = useState<string | null>(null);
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showReminder, { open: reminderOpen, close: reminderClose }] =
+    useDisclosure(false);
+  const { currentEvent } = useChampdUpContext();
+  const [reminderExpires, setReminderExpires] = useState<Date | null>(null);
+  const reminderSounds = getSounds([reminder0, reminder1, reminder2], VOLUME);
 
   useEffect(() => {
     if (!gameData) return;
     setPaths([]);
     setTitle("");
+    setHasSubmitted(false);
+    reminderClose();
     const drawData = gameData as DrawData;
     const counterData = gameData as CounterData;
     if (drawData.prompt) {
@@ -177,7 +218,36 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
       setCounter(counterData.counter);
       setPrompt("");
     }
+    if (currentEvent && currentEvent.ends) {
+      const d0 = new Date();
+      const d1 = new Date(currentEvent.ends);
+      const duration = d1.getTime() - d0.getTime();
+      d0.setTime(d0.getTime() + duration * 0.9)
+      setReminderExpires(d0);
+    }
   }, [gameData]);
+
+  const ReminderTimerComponent = ({expiryTimestamp}: {expiryTimestamp: Date | null}) => {
+    if (!expiryTimestamp) return <></>;
+
+    const externalPlay = useMemo(() => () => {
+      if (!hasSubmitted) {
+        const [play] = reminderSounds[randomIntFromInterval(0, reminderSounds.length - 1)];
+        play();
+      }
+    }, [hasSubmitted]);
+
+    useTimer({expiryTimestamp, onExpire: () => {
+      if (!hasSubmitted) {
+        reminderOpen();
+        externalPlay();
+      }
+    }});
+
+    return <></>;
+  }
+
+
 
   const getContext = useCallback(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -281,6 +351,8 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
       type: MessageType.IMAGE,
       value: { dUri: getDataURL(canvasRef.current), title },
     });
+    setHasSubmitted(true);
+    reminderClose();
   };
 
   useEffect(() => {
@@ -315,6 +387,13 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   return (
     <div id="sketch-pad-wrapper" style={{ width: size }}>
+      <SketchPadReminderModal
+        opened={showReminder && !hasSubmitted}
+        close={reminderClose}
+        submit={handleSubmit}
+        setTitle={setTitle}
+      />
+      <ReminderTimerComponent expiryTimestamp={reminderExpires} />
       <Stack id="sketch-pad-controls" align="center">
         {counter && (
           <>

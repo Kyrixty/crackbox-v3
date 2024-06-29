@@ -12,6 +12,7 @@ export enum MessageType {
   NOTIFY = "NOTIFY",
   POLL = "POLL",
   POLL_VOTE = "POLL_VOTE",
+  SPONSOR = "SPONSOR",
   IMAGE = "IMAGE",
   IMAGE_SUBMITS = "IMAGE_SUBMITS",
   IMAGE_SWAP = "IMAGE_SWAP",

@@ -1,0 +1,38 @@
+#sponsor-banner {
+  background: #ffd700 radial-gradient(#b89c02 40%, transparent 40%) 0px 0px/50px
+    50px round;
+  animation: move_bg_sponsor 10s linear infinite;
+  border: 5px solid black;
+}
+
+#sponsor-banner-img {
+    border: 5px solid black;
+    animation: img_dance 1s linear infinite;
+}
+
+@keyframes move_bg_sponsor {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 100% 0%;
+  }
+}
+
+@keyframes img_dance {
+    0% {
+        transform: rotate(-15deg) scale(2);
+    }
+
+    49.9% {
+        transform: rotate(-15deg) scale(2);
+    }
+    50% {
+        transform: rotate(15deg) scale(2);
+    }
+    
+    99.9% {
+        transform: rotate(15deg) scale(2);
+    }
+}

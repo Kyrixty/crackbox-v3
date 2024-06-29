@@ -84,6 +84,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     CHAT = "CHAT"
     POLL = "POLL"
     POLL_VOTE = "POLL_VOTE"
+    SPONSOR = "SPONSOR"
     PM = "PM"
     NOTIFY = "NOTIFY"
     IMAGE = "IMAGE"
@@ -722,6 +723,19 @@ class ChampdUp(Game):
             return bool(text)
         return False
     
+    def validate_sponsor_msg(self, msg: MessageSchema) -> bool:
+        if self.poll and self.poll.is_active():
+            return False
+        if type(msg.value) != str:
+            return False
+        text: str = msg.value
+        return text.strip() == "/sponsor"
+    
+    def prepare_sponsor_msg(self) -> ProcessedMessage:
+        pm = ProcessedMessage()
+        pm.add_broadcast(MessageType.SPONSOR, None, 0)
+        return pm
+    
     def prepare_poll_broadcast(self, text: str, author: int | str) -> ProcessedMessage:
         pm = ProcessedMessage()
         self.poll = Poll(
@@ -849,6 +863,8 @@ class ChampdUp(Game):
             return pm
         if msg.type == MessageType.CHAT:
             if self.validate_chat_msg(msg):
+                if self.validate_sponsor_msg(msg):
+                    return self.prepare_sponsor_msg()
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
                 pm.add_broadcast(msg.type, msg.value, self.get_player(username).data)

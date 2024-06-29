@@ -17,6 +17,7 @@ import sponsor from "/audio/flipside_sponsor.wav";
 import useSound from "use-sound";
 import { useUserContext } from "@lib/context/user";
 import { randomIntFromInterval } from "@utils/rand";
+import { SponsorBanner } from "./champdup/sponsor";
 
 const VOLUME = 0.1;
 
@@ -45,6 +46,7 @@ export const Poll = (props: PollProps) => {
   const im = isMobile();
   const [amongusPlay] = useSound(amogus, { volume: VOLUME });
   const [sponsorPlay] = useSound(sponsor, { volume: VOLUME });
+  const [sponsorActive, setSponsorActive] = useState(false);
 
   const _clearPollData = () => {
     setPollData(null);
@@ -67,6 +69,12 @@ export const Poll = (props: PollProps) => {
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
+    if (lastJsonMessage.type === MessageType.SPONSOR) {
+      if (isHost && !sponsorActive) {
+        setSponsorActive(true);
+        setTimeout(() => setSponsorActive(false), 8000);
+      }
+    }
     if (lastJsonMessage.type === props.poll_start_signal) {
       const poll: PollData = lastJsonMessage.value;
       const ends = new Date(poll.ends);
@@ -75,11 +83,7 @@ export const Poll = (props: PollProps) => {
       const earlyEnds = ends.getTime() - now.getTime() - 500;
       if (now >= ends) return;
       if (isHost) {
-        const audios = [sponsorPlay, amongusPlay];
-        const idx = randomIntFromInterval(0, audios.length - 1);
-        console.log(idx);
-        const audio = audios[idx];
-        audio();
+        amongusPlay();
       }
       setPollEnds(earlyEnds);
       setTimeout(clearPoll, earlyEnds);
@@ -97,6 +101,7 @@ export const Poll = (props: PollProps) => {
 
   return (
     <div id="poll-listener">
+      <SponsorBanner mounted={sponsorActive} />
       <Transition
         transition="slide-right"
         duration={250}
