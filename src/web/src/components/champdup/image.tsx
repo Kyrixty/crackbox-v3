@@ -36,6 +36,7 @@ import fire from "/audio/fire.wav";
 
 import { getSounds } from "@utils/sound";
 import { PromptBanner } from "./banners";
+import "@/css/image.css";
 
 const VOLUME = 0.1;
 const DURATION = 1000; //ms
@@ -218,8 +219,10 @@ export const HostImageCandidate = ({
     setFireCache(onFire);
   }, [votes]);
 
-  const sounds = getSounds([godlike, holy, therapy], 0.2);
+  const sounds = getSounds([godlike, holy, therapy], 0.1);
   const [firePlay] = useSound(fire, { volume: 0.3 });
+  const [started, setStarted] = useState(false);
+  const { lastJsonMessage } = useMessenger();
 
   const skew = isLeft ? "-10deg" : "10deg";
   const votesPct = (votes.length / totalVotes) * 100;
@@ -238,6 +241,19 @@ export const HostImageCandidate = ({
         backgroundRepeat: "round",
       }
     : {};
+
+  useEffect(() => {
+    if (lastJsonMessage === null) return;
+    if (lastJsonMessage.type === MessageType.MATCHUP_START) {
+      setStarted(true);
+    }
+    if (
+      lastJsonMessage.type === MessageType.MATCHUP ||
+      lastJsonMessage.type === MessageType.MATCHUP_RESULT
+    ) {
+      setStarted(false);
+    }
+  }, [lastJsonMessage]);
 
   return (
     <Stack align="center" w={300} gap="lg">
@@ -258,7 +274,12 @@ export const HostImageCandidate = ({
         />
       </Box>
       <Group justify="center"></Group>
-      <Image style={style} src={image.dUri} w={300} />
+      <Image
+        className={started ? "host-image-candidate" : ""}
+        style={style}
+        src={image.dUri}
+        w={300}
+      />
     </Stack>
   );
 };
@@ -279,7 +300,6 @@ export const PlayerImageCandidate = ({
   clicked,
   clickCallback,
 }: PlayerCandidateProps) => {
-  if (!image) return <></>;
   const { sendJsonMessage } = useMessenger();
 
   const handleClick = () => {
@@ -289,6 +309,7 @@ export const PlayerImageCandidate = ({
 
   const bg = clicked === name ? "gray" : "white";
 
+  if (!image) return <></>;
   return (
     <Card
       style={{ cursor: "pointer" }}
@@ -323,10 +344,9 @@ export const PlayerVoteController = ({
   const [canVote, setCanVote] = useState(false);
   const { username } = useUserContext();
   const { currentEvent } = useChampdUpContext();
-  const { sendJsonMessage } = useMessenger<MessageType>();
+  const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
   const [swapImgClicked, setSwapImgClicked] = useState<number | null>(null);
-
-  const started = !inGrace || matchup.started;
+  const [started, setStarted] = useState(false);
 
   useEffect(() => {
     setClicked(null);
@@ -346,6 +366,19 @@ export const PlayerVoteController = ({
   useEffect(() => {
     setSwapImgClicked(null);
   }, [swapImages]);
+
+  useEffect(() => {
+    if (lastJsonMessage === null) return;
+    if (lastJsonMessage.type === MessageType.MATCHUP_START) {
+      setStarted(true);
+    }
+    if (
+      lastJsonMessage.type === MessageType.MATCHUP ||
+      lastJsonMessage.type === MessageType.MATCHUP_RESULT
+    ) {
+      setStarted(false);
+    }
+  }, [lastJsonMessage]);
 
   const handleSwapClick = (hash: string, idx: number) => {
     sendJsonMessage({ type: MessageType.IMAGE_SWAP, value: hash });

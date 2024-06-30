@@ -69,6 +69,7 @@ import lobbyTheme from "/audio/lobby.wav";
 import drawTheme from "/audio/draw-1.mp3";
 import vote3Theme from "/audio/vote-3.mp3";
 import longNightTheme from "/audio/long-night.mp3";
+import stal from "/audio/stal.mp3";
 import { PlayFunction } from "use-sound/dist/types";
 
 import vote0sfx from "/audio/vote/vote0.wav";
@@ -185,6 +186,10 @@ const AudioController = () => {
       loop: true,
     }
   );
+  const [stalPlay, { stop: stalStop, sound: stalSound }] = useSound(stal, {
+    volume: VOLUME,
+    loop: true,
+  });
   const { status } = useGameContext();
 
   const resolveSound = () => {
@@ -200,18 +205,23 @@ const AudioController = () => {
       return;
     }
     if (status === GameStatus.WAITING) {
+      stopIfCurrentExists();
       setCurrent({ play: lobbyPlay, stop: stop, sound: sound });
       lobbyPlay();
       sound.fade(0, VOLUME, 1000);
     }
     if (
       currentEvent &&
-      [
-        EventNames.FirstVote,
-        EventNames.SecondVote,
-        EventNames.FirstDraw,
-        EventNames.SecondDraw,
-      ].includes(currentEvent.name)
+      [EventNames.FirstDraw, EventNames.SecondDraw].includes(currentEvent.name)
+    ) {
+      stopIfCurrentExists();
+      setCurrent({ play: stalPlay, stop: stalStop, sound: stalSound });
+      stalPlay();
+      stalSound.fade(0, VOLUME, 1000);
+    }
+    if (
+      currentEvent &&
+      [EventNames.FirstVote, EventNames.SecondVote].includes(currentEvent.name)
     ) {
       if (current && current.play === votePlay) return;
       stopIfCurrentExists();
@@ -492,11 +502,6 @@ const RunningComponent = () => {
     }
 
     if (lastJsonMessage.type == MessageType.MATCHUP) {
-      if (lastJsonMessage.value.swap_candidates) {
-        setSwapImages(lastJsonMessage.value.swap_candidates);
-      } else {
-        setSwapImages([]);
-      }
       setMatchupEnds(new Date(lastJsonMessage.value.ends));
       setMatchup(lastJsonMessage.value.matchup);
       setPMounted(false);
@@ -506,6 +511,11 @@ const RunningComponent = () => {
     }
 
     if (lastJsonMessage.type === MessageType.MATCHUP_START) {
+      if (lastJsonMessage.value.swap_candidates) {
+        setSwapImages(lastJsonMessage.value.swap_candidates);
+      } else {
+        setSwapImages([]);
+      }
       setMatchup(lastJsonMessage.value.matchup);
       setCurrentMatchup(lastJsonMessage.value.matchup);
       setCurrentMatchupIdx(lastJsonMessage.value.idx);
@@ -639,23 +649,6 @@ const RunningComponent = () => {
               )}
             </Transition>
           </Affix>
-          <Affix bottom="5vh">
-            <Transition
-              mounted={pMounted}
-              transition="slide-up"
-              duration={fBannerDuration}
-              exitDuration={fBannerDuration}
-            >
-              {(styles) => {
-                if (!matchup) return <></>;
-                return (
-                  <Box style={{ ...styles }}>
-                    <PromptBanner prompt={matchup?.left.prompt} />
-                  </Box>
-                );
-              }}
-            </Transition>
-          </Affix>
           {matchup !== null && (
             <HostMatchupController
               left={{
@@ -695,8 +688,13 @@ const RunningComponent = () => {
         <HostComponent>
           <div id="leaderboard-root">
             {leaderboard.length && leaderboardImgs.length && (
-              <ScrollArea offsetScrollbars>
-                <Group justify="space-around">
+              <Group justify="space-around">
+                <ScrollArea
+                  type="never"
+                  p={10}
+                  style={{ height: "100vh" }}
+                  offsetScrollbars
+                >
                   <Stack align="center">
                     <Group justify="space-around">
                       <LeaderboardCard
@@ -718,7 +716,7 @@ const RunningComponent = () => {
                       />
                     </SimpleGrid>
                     {leaderboard.length > 3 && (
-                      <ScrollArea w="100%" offsetScrollbars>
+                      <Box w="100%">
                         {leaderboard.slice(3).map((p) => (
                           <Box
                             bg={`linear-gradient(0deg, ${darken(
@@ -743,85 +741,85 @@ const RunningComponent = () => {
                             </Group>
                           </Box>
                         ))}
-                      </ScrollArea>
+                      </Box>
                     )}
                   </Stack>
-                  <div style={{ height: 700, display: "flex" }}>
-                    <Carousel
-                      withControls={false}
-                      orientation="vertical"
-                      slideSize="100%"
-                      height="100%"
-                      style={{ flex: 1 }}
-                      plugins={[autoplay.current]}
-                      onMouseLeave={() => autoplay.current.play()}
-                    >
-                      {leaderboardImgs.map((img) => (
-                        <Carousel.Slide>
-                          <Stack align="center">
-                            <Box
-                              p={20}
-                              bg="black"
-                              style={{ transform: "skewX(-10deg)" }}
-                            >
-                              <Title order={3}>{img.image.title}</Title>
-                            </Box>
-                            <Image w={400} src={img.image.dUri} />
-                            <Group>
-                              <Stack>
-                                {img.image.artists.map((p) => (
-                                  <Group>
-                                    <Avatar
-                                      size="lg"
-                                      src={
-                                        p.avatar_data_url
-                                          ? p.avatar_data_url
-                                          : "/imgs/crackbox-logo-2.png"
-                                      }
-                                      style={{
-                                        backgroundColor: p.color,
-                                        boxShadow: `1px 1px 12px 4px ${p.color}`,
-                                      }}
-                                    />
-                                    <Title order={4} style={{ color: "black" }}>
-                                      {p.username}
-                                    </Title>
-                                  </Group>
-                                ))}
-                                <Group justify="center">
-                                  <Title c="black" order={5}>
-                                    ${img.image.points}
+                </ScrollArea>
+                <div style={{ height: 700, display: "flex" }}>
+                  <Carousel
+                    withControls={false}
+                    orientation="vertical"
+                    slideSize="100%"
+                    height="100%"
+                    style={{ flex: 1 }}
+                    plugins={[autoplay.current]}
+                    onMouseLeave={() => autoplay.current.play()}
+                  >
+                    {leaderboardImgs.map((img) => (
+                      <Carousel.Slide>
+                        <Stack align="center">
+                          <Box
+                            p={20}
+                            bg="black"
+                            style={{ transform: "skewX(-10deg)" }}
+                          >
+                            <Title order={3}>{img.image.title}</Title>
+                          </Box>
+                          <Image w={400} src={img.image.dUri} />
+                          <Group>
+                            <Stack>
+                              {img.image.artists.map((p) => (
+                                <Group>
+                                  <Avatar
+                                    size="lg"
+                                    src={
+                                      p.avatar_data_url
+                                        ? p.avatar_data_url
+                                        : "/imgs/crackbox-logo-2.png"
+                                    }
+                                    style={{
+                                      backgroundColor: p.color,
+                                      boxShadow: `1px 1px 12px 4px ${p.color}`,
+                                    }}
+                                  />
+                                  <Title order={4} style={{ color: "black" }}>
+                                    {p.username}
                                   </Title>
                                 </Group>
-                              </Stack>
-                            </Group>
-                            <Group>
-                              {img.awards.map((award) => {
-                                return (
-                                  <HoverCard>
-                                    <HoverCard.Target>
-                                      <Image
-                                        src={awardNamesIconMap[award.name]}
-                                        w={75}
-                                      />
-                                    </HoverCard.Target>
-                                    <HoverCard.Dropdown>
-                                      <Text size="sm">
-                                        {award.name} - ${award.bonus} -{" "}
-                                        {awardNamesDescMap[award.name]}
-                                      </Text>
-                                    </HoverCard.Dropdown>
-                                  </HoverCard>
-                                );
-                              })}
-                            </Group>
-                          </Stack>
-                        </Carousel.Slide>
-                      ))}
-                    </Carousel>
-                  </div>
-                </Group>
-              </ScrollArea>
+                              ))}
+                              <Group justify="center">
+                                <Title c="black" order={5}>
+                                  ${img.image.points}
+                                </Title>
+                              </Group>
+                            </Stack>
+                          </Group>
+                          <Group>
+                            {img.awards.map((award) => {
+                              return (
+                                <HoverCard>
+                                  <HoverCard.Target>
+                                    <Image
+                                      src={awardNamesIconMap[award.name]}
+                                      w={75}
+                                    />
+                                  </HoverCard.Target>
+                                  <HoverCard.Dropdown>
+                                    <Text size="sm">
+                                      {award.name} - ${award.bonus} -{" "}
+                                      {awardNamesDescMap[award.name]}
+                                    </Text>
+                                  </HoverCard.Dropdown>
+                                </HoverCard>
+                              );
+                            })}
+                          </Group>
+                        </Stack>
+                      </Carousel.Slide>
+                    ))}
+                  </Carousel>
+                </div>
+              </Group>
             )}
           </div>
         </HostComponent>

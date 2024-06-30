@@ -1,0 +1,25 @@
+.host-image-candidate {
+    animation: candidateBounce 1s infinite;
+}
+
+@keyframes candidateBounce {
+    0% {
+        transform: translateY(0px) scaleX(1.25);
+    }
+
+    25% {
+        transform: translateY(0px) scaleX(1.25);
+    }
+
+    50% {
+        transform: translateY(-40px) scaleX(1);
+    }
+
+    75% {
+        transform: translateY(-40px);
+    }
+
+    100% {
+        transform: translateY(0px) scaleX(1.25);
+    }
+}

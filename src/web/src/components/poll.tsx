@@ -47,7 +47,7 @@ export const Poll = (props: PollProps) => {
   const noPct = pollData !== null ? pollData.no.length / total : 0;
   const im = isMobile();
   const pollSounds = getSounds([amogus, fnaf2hallway], VOLUME);
-  const [sponsorPlay] = useSound(sponsor, { volume: VOLUME });
+  const [sponsorPlay] = useSound(sponsor, { volume: 0.8 });
   const [sponsorActive, setSponsorActive] = useState(false);
 
   const _clearPollData = () => {
