@@ -22,6 +22,7 @@ import {
   Stack,
   Text,
   Title,
+  Transition,
 } from "@mantine/core";
 import { isDesktop, isMobile, isTablet } from "@utils/device";
 import {
@@ -74,7 +75,9 @@ import vote0sfx from "/audio/vote/vote0.wav";
 import vote1sfx from "/audio/vote/vote1.wav";
 import vote2sfx from "/audio/vote/vote2.wav";
 import vote3sfx from "/audio/vote/vote3.wav";
+import fight from "/audio/fight.mp3";
 import { getSounds } from "@utils/sound";
+import { FightBanner } from "./banners";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -375,7 +378,12 @@ const RUNNING_HOST_TEXTS = [
 ];
 
 const RunningComponent = () => {
-  const { currentEvent, currentEventData, setCurrentMatchup, setCurrentMatchupIdx } = useChampdUpContext();
+  const {
+    currentEvent,
+    currentEventData,
+    setCurrentMatchup,
+    setCurrentMatchupIdx,
+  } = useChampdUpContext();
   const { players } = useGameContext();
   const { isHost } = useUserContext();
   const { lastJsonMessage } = useMessenger<MessageType>();
@@ -399,6 +407,11 @@ const RunningComponent = () => {
     [vote0sfx, vote1sfx, vote2sfx, vote3sfx],
     0.2
   );
+
+  const [fightPlay] = useSound(fight, { volume: 0.5 });
+  const [fMounted, setFMounted] = useState(false);
+
+  const fBannerDuration = 500;
 
   const awardNamesIconMap = {
     [AwardNames.DOMINATION]: "/imgs/domination-icon.gif",
@@ -485,6 +498,7 @@ const RunningComponent = () => {
 
     if (lastJsonMessage.type === MessageType.MATCHUP_START) {
       setInGrace(false);
+      setFMounted(true);
     }
 
     if (lastJsonMessage.type == MessageType.MATCHUP_VOTE) {
@@ -588,6 +602,24 @@ const RunningComponent = () => {
       </EventComponent>
       <EventComponent name={[EventNames.FirstVote, EventNames.SecondVote]}>
         <HostComponent>
+          <Affix top="10vh">
+            <Transition
+              mounted={fMounted}
+              transition="slide-down"
+              onEntered={() => {
+                fightPlay();
+                setTimeout(() => setFMounted(false), fBannerDuration * 2);
+              }}
+              duration={fBannerDuration}
+              exitDuration={fBannerDuration}
+            >
+              {(styles) => (
+                <Box style={{ ...styles }}>
+                  <FightBanner />
+                </Box>
+              )}
+            </Transition>
+          </Affix>
           {matchup !== null && (
             <HostMatchupController
               left={{

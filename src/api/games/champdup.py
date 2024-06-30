@@ -629,7 +629,7 @@ class ChampdUp(Game):
             return default
         
         await self.predicate_send(
-            MessageType.MATCHUP,
+            MessageType.MATCHUP_START,
             predicate,
         )
         await self.timer.start(ends, IVRMode.Result)
