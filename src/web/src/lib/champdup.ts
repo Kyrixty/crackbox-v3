@@ -44,6 +44,7 @@ export type Event = {
 export type ImageData = {
   artists: Player[];
   points: number;
+  prompt: string;
   dUri: string;
   title: string;
   last_changed: string;

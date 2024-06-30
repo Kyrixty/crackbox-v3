@@ -6,6 +6,7 @@ import {
 } from "@lib/champdup";
 import { useMessenger } from "@lib/context/ws";
 import {
+  Affix,
   Box,
   Card,
   Group,
@@ -34,6 +35,7 @@ import therapy from "/audio/therapy.mp3";
 import fire from "/audio/fire.wav";
 
 import { getSounds } from "@utils/sound";
+import { PromptBanner } from "./banners";
 
 const VOLUME = 0.1;
 const DURATION = 1000; //ms
@@ -66,6 +68,8 @@ export const HostMatchupController = ({
 
   const [leftImg, setLeftImg] = useState<ImageData | undefined>();
   const [rightImg, setRightImg] = useState<ImageData | undefined>();
+
+  const [pMounted, setPMounted] = useState(false);
 
   const handleNewMatchup = (leftImage: ImageData, rightImage: ImageData) => {
     setLeftImg(leftImage);
@@ -103,6 +107,7 @@ export const HostMatchupController = ({
       setmIdx(lastJsonMessage.value.idx);
       setLeftMounted(false);
       setRightMounted(false);
+      setPMounted(false);
       setTimeout(
         () =>
           handleNewMatchup(
@@ -158,6 +163,7 @@ export const HostMatchupController = ({
           duration={DURATION}
           onEnter={onEnter}
           onExited={onRightExited}
+          onEntered={() => setTimeout(() => setPMounted(true), 1000)}
         >
           {(styles) => (
             <Box style={{ ...styles }}>
@@ -170,6 +176,23 @@ export const HostMatchupController = ({
           )}
         </Transition>
       </Group>
+      <Affix bottom="5vh">
+        <Transition
+          mounted={pMounted}
+          transition="slide-up"
+          duration={1000}
+          exitDuration={500}
+        >
+          {(styles) => {
+            if (!left.image) return <></>;
+            return (
+              <Box style={{ ...styles }}>
+                <PromptBanner prompt={left.image.prompt} />
+              </Box>
+            );
+          }}
+        </Transition>
+      </Affix>
     </Box>
   );
 };
@@ -196,7 +219,7 @@ export const HostImageCandidate = ({
   }, [votes]);
 
   const sounds = getSounds([godlike, holy, therapy], 0.2);
-  const [firePlay] = useSound(fire, {volume: 0.3});
+  const [firePlay] = useSound(fire, { volume: 0.3 });
 
   const skew = isLeft ? "-10deg" : "10deg";
   const votesPct = (votes.length / totalVotes) * 100;

@@ -79,7 +79,7 @@ import fight from "/audio/fight.mp3";
 import sickem from "/audio/sickem.mp3";
 import jack from "/audio/jack.mp3";
 import { getSounds } from "@utils/sound";
-import { FightBanner } from "./banners";
+import { FightBanner, PromptBanner } from "./banners";
 
 const AVATAR_LARGE = 300;
 const AVATAR_SMALL = 150;
@@ -417,6 +417,7 @@ const RunningComponent = () => {
   const [jackPlay] = useSound(jack, { volume: 0.4 });
   const [sePlay] = useSound(sickem, { volume: 0.4 });
   const [fMounted, setFMounted] = useState(false);
+  const [pMounted, setPMounted] = useState(false);
 
   const fBannerDuration = 500;
 
@@ -498,6 +499,7 @@ const RunningComponent = () => {
       }
       setMatchupEnds(new Date(lastJsonMessage.value.ends));
       setMatchup(lastJsonMessage.value.matchup);
+      setPMounted(false);
       setLeftVotes([]);
       setRightVotes([]);
       setInGrace(lastJsonMessage.value.matchup.started);
@@ -637,6 +639,23 @@ const RunningComponent = () => {
               )}
             </Transition>
           </Affix>
+          <Affix bottom="5vh">
+            <Transition
+              mounted={pMounted}
+              transition="slide-up"
+              duration={fBannerDuration}
+              exitDuration={fBannerDuration}
+            >
+              {(styles) => {
+                if (!matchup) return <></>;
+                return (
+                  <Box style={{ ...styles }}>
+                    <PromptBanner prompt={matchup?.left.prompt} />
+                  </Box>
+                );
+              }}
+            </Transition>
+          </Affix>
           {matchup !== null && (
             <HostMatchupController
               left={{
@@ -770,7 +789,9 @@ const RunningComponent = () => {
                                   </Group>
                                 ))}
                                 <Group justify="center">
-                                  <Title c="black" order={5}>${img.image.points}</Title>
+                                  <Title c="black" order={5}>
+                                    ${img.image.points}
+                                  </Title>
                                 </Group>
                               </Stack>
                             </Group>

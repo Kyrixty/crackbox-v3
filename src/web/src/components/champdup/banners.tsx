@@ -1,4 +1,4 @@
-import { Box, Group, Image } from "@mantine/core";
+import { Box, Group, Image, Title } from "@mantine/core";
 
 export const FightBanner = () => {
   return (
@@ -17,6 +17,20 @@ export const FightBanner = () => {
               w={300}
             />
           </Group>
+        </Box>
+      </Group>
+    </Box>
+  );
+};
+
+export const PromptBanner = ({prompt}: {prompt: string}) => {
+  return (
+    <Box id="prompt-banner" w="100vw">
+      <Group justify="center">
+        <Box bg="black" style={{ borderRadius: 10 }} p={"20px 80px"}>
+          <Title c="white" order={2}>
+            {prompt}
+          </Title>
         </Box>
       </Group>
     </Box>
