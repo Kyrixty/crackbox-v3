@@ -17,7 +17,7 @@ import {
   Transition,
 } from "@mantine/core";
 import { MessageType } from "@lib/champdup";
-import { useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { useUserContext } from "@lib/context/user";
 import { Player } from "@lib/player";
 import { useChampdUpContext } from "@lib/context/champdup";
@@ -27,6 +27,13 @@ import { randomIntFromInterval } from "@utils/rand";
 import { useGameStyleContext } from "@lib/context/game";
 import { getColorRepresentation } from "@utils/color";
 import ProgressBar from "@ramonak/react-progress-bar";
+
+import godlike from "/audio/godlike.mp3";
+import holy from "/audio/holy.mp3";
+import therapy from "/audio/therapy.mp3";
+import fire from "/audio/fire.wav";
+
+import { getSounds } from "@utils/sound";
 
 const VOLUME = 0.1;
 const DURATION = 1000; //ms
@@ -55,6 +62,7 @@ export const HostMatchupController = ({
   const [rightMounted, setRightMounted] = useState(false);
   const [playWhoosh1] = useSound(whoosh1, { volume: VOLUME });
   const { lastJsonMessage, sendJsonMessage } = useMessenger<MessageType>();
+  const { currentMatchup } = useChampdUpContext();
 
   const [leftImg, setLeftImg] = useState<ImageData | undefined>();
   const [rightImg, setRightImg] = useState<ImageData | undefined>();
@@ -77,6 +85,16 @@ export const HostMatchupController = ({
   const onRightExited = () => {
     // kill grace period
   };
+
+  useEffect(() => {
+    if (currentMatchup === null) {
+      setLeftMounted(false);
+      setRightMounted(false);
+      return;
+    }
+    setLeftImg(currentMatchup.left);
+    setRightImg(currentMatchup.right);
+  }, [currentMatchup]);
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
@@ -133,7 +151,7 @@ export const HostMatchupController = ({
             </Box>
           )}
         </Transition>
-        {!leftMounted && <Box miw={300} />}
+        {!leftMounted && <Box miw={10} />}
         <Transition
           mounted={rightMounted}
           transition="slide-left"
@@ -163,10 +181,22 @@ export const HostImageCandidate = ({
   isLeft,
 }: HostImageCandidateProps) => {
   if (!image) return <></>;
+  const [fireCache, setFireCache] = useState(false);
 
   useEffect(() => {
     console.log(votes);
+    const onFire = votesPct >= 70;
+    if (onFire) {
+      if (!fireCache) {
+        firePlay();
+        sounds[randomIntFromInterval(0, sounds.length - 1)][0]();
+      }
+    }
+    setFireCache(onFire);
   }, [votes]);
+
+  const sounds = getSounds([godlike, holy, therapy], 0.2);
+  const [firePlay] = useSound(fire, {volume: 0.3});
 
   const skew = isLeft ? "-10deg" : "10deg";
   const votesPct = (votes.length / totalVotes) * 100;
@@ -175,6 +205,16 @@ export const HostImageCandidate = ({
     votesPct
   )} ${votesPct}%, rgba(40,40,40,0) ${votesPct}%)`;
   const order = image.title.length > 40 ? 4 : 3;
+
+  const onFire = votesPct >= 70;
+
+  const style: CSSProperties = onFire
+    ? {
+        backgroundImage: "url('/imgs/fire.gif')",
+        backgroundSize: "cover",
+        backgroundRepeat: "round",
+      }
+    : {};
 
   return (
     <Stack align="center" w={300} gap="lg">
@@ -195,7 +235,7 @@ export const HostImageCandidate = ({
         />
       </Box>
       <Group justify="center"></Group>
-      <Image src={image.dUri} w={300} />
+      <Image style={style} src={image.dUri} w={300} />
     </Stack>
   );
 };
@@ -326,7 +366,7 @@ export const PlayerVoteController = ({
       )}
       {canVote &&
         (started ? (
-          <Group justify="space-around"> 
+          <Group justify="space-around">
             <PlayerImageCandidate
               image={matchup.left}
               name="left"

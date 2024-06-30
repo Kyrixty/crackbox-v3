@@ -76,6 +76,8 @@ import vote1sfx from "/audio/vote/vote1.wav";
 import vote2sfx from "/audio/vote/vote2.wav";
 import vote3sfx from "/audio/vote/vote3.wav";
 import fight from "/audio/fight.mp3";
+import sickem from "/audio/sickem.mp3";
+import jack from "/audio/jack.mp3";
 import { getSounds } from "@utils/sound";
 import { FightBanner } from "./banners";
 
@@ -131,6 +133,7 @@ const PlayerCard = ({
               color: "white",
               textShadow: "2px 2px 1px black",
               lineClamp: 1,
+              wordBreak: "break-all",
             }}
           >
             {p.username}
@@ -298,7 +301,8 @@ const Lobby = () => {
     <div id="lobby-root">
       <Group justify="center">
         <Stack align="center">
-          <SimpleGrid cols={players.length > 6 ? 5 : 3}>
+          {/* <SimpleGrid cols={players.length > 6 ? 5 : 3}> */}
+          <Group justify="center">
             {players.map((p) => {
               return (
                 <>
@@ -321,7 +325,8 @@ const Lobby = () => {
                 </>
               );
             })}
-          </SimpleGrid>
+          </Group>
+          {/* </SimpleGrid> */}
           <GameIdTitle />
           <HostComponent>
             <Button
@@ -409,6 +414,8 @@ const RunningComponent = () => {
   );
 
   const [fightPlay] = useSound(fight, { volume: 0.5 });
+  const [jackPlay] = useSound(jack, { volume: 0.4 });
+  const [sePlay] = useSound(sickem, { volume: 0.4 });
   const [fMounted, setFMounted] = useState(false);
 
   const fBannerDuration = 500;
@@ -497,6 +504,9 @@ const RunningComponent = () => {
     }
 
     if (lastJsonMessage.type === MessageType.MATCHUP_START) {
+      setMatchup(lastJsonMessage.value.matchup);
+      setCurrentMatchup(lastJsonMessage.value.matchup);
+      setCurrentMatchupIdx(lastJsonMessage.value.idx);
       setInGrace(false);
       setFMounted(true);
     }
@@ -608,6 +618,13 @@ const RunningComponent = () => {
               transition="slide-down"
               onEntered={() => {
                 fightPlay();
+                if (randomIntFromInterval(0, 4) === 1) {
+                  if (randomIntFromInterval(0, 1) === 1) {
+                    jackPlay();
+                  } else {
+                    sePlay();
+                  }
+                }
                 setTimeout(() => setFMounted(false), fBannerDuration * 2);
               }}
               duration={fBannerDuration}
@@ -659,123 +676,131 @@ const RunningComponent = () => {
         <HostComponent>
           <div id="leaderboard-root">
             {leaderboard.length && leaderboardImgs.length && (
-              <Group justify="space-around">
-                <Stack align="center">
-                  <Group justify="space-around">
-                    <LeaderboardCard
-                      p={leaderboard[0]}
-                      colorOverride="#FFD700"
-                      forceSmall={leaderboard.length > 3}
-                    />
-                  </Group>
-                  <SimpleGrid cols={2}>
-                    <LeaderboardCard
-                      p={leaderboard[1]}
-                      colorOverride="#C0C0C0"
-                      forceSmall={leaderboard.length > 3}
-                    />
-                    <LeaderboardCard
-                      p={leaderboard[2]}
-                      colorOverride="#CD7F32"
-                      forceSmall={leaderboard.length > 3}
-                    />
-                  </SimpleGrid>
-                  {leaderboard.length > 3 && (
-                    <ScrollArea w="100%" offsetScrollbars>
-                      {leaderboard.slice(3).map((p) => (
-                        <Box
-                          bg={`linear-gradient(0deg, ${darken(
-                            p.color,
-                            0.5
-                          )} 30%, ${p.color}`}
-                          p={5}
-                        >
-                          <Group>
-                            <Avatar
-                              size="lg"
-                              src={
-                                p.avatar_data_url
-                                  ? p.avatar_data_url
-                                  : "/imgs/crackbox-logo-2.png"
-                              }
-                            />
-                            <Text style={{ textShadow: "2px 2px 1px black" }}>
-                              ${p.points}
-                            </Text>
-                          </Group>
-                        </Box>
-                      ))}
-                    </ScrollArea>
-                  )}
-                </Stack>
-                <div style={{ height: 700, display: "flex" }}>
-                  <Carousel
-                    withControls={false}
-                    orientation="vertical"
-                    slideSize="100%"
-                    height="100%"
-                    style={{ flex: 1 }}
-                    plugins={[autoplay.current]}
-                    onMouseLeave={() => autoplay.current.play()}
-                  >
-                    {leaderboardImgs.map((img) => (
-                      <Carousel.Slide>
-                        <Stack align="center">
+              <ScrollArea offsetScrollbars>
+                <Group justify="space-around">
+                  <Stack align="center">
+                    <Group justify="space-around">
+                      <LeaderboardCard
+                        p={leaderboard[0]}
+                        colorOverride="#FFD700"
+                        forceSmall={leaderboard.length > 3}
+                      />
+                    </Group>
+                    <SimpleGrid cols={2}>
+                      <LeaderboardCard
+                        p={leaderboard[1]}
+                        colorOverride="#C0C0C0"
+                        forceSmall={leaderboard.length > 3}
+                      />
+                      <LeaderboardCard
+                        p={leaderboard[2]}
+                        colorOverride="#CD7F32"
+                        forceSmall={leaderboard.length > 3}
+                      />
+                    </SimpleGrid>
+                    {leaderboard.length > 3 && (
+                      <ScrollArea w="100%" offsetScrollbars>
+                        {leaderboard.slice(3).map((p) => (
                           <Box
-                            p={20}
-                            bg="black"
-                            style={{ transform: "skewX(-10deg)" }}
+                            bg={`linear-gradient(0deg, ${darken(
+                              p.color,
+                              0.5
+                            )} 30%, ${p.color}`}
+                            p={5}
                           >
-                            <Title order={3}>{img.image.title}</Title>
+                            <Group>
+                              <Avatar
+                                size="lg"
+                                src={
+                                  p.avatar_data_url
+                                    ? p.avatar_data_url
+                                    : "/imgs/crackbox-logo-2.png"
+                                }
+                              />
+                              <Text style={{ textShadow: "2px 2px 1px black" }}>
+                                {p.username}
+                                <br />${p.points}
+                              </Text>
+                            </Group>
                           </Box>
-                          <Image w={400} src={img.image.dUri} />
-                          <Group>
-                            {img.image.artists.map((p) => (
-                              <Group>
-                                <Avatar
-                                  size="lg"
-                                  src={
-                                    p.avatar_data_url
-                                      ? p.avatar_data_url
-                                      : "/imgs/crackbox-logo-2.png"
-                                  }
-                                  style={{
-                                    backgroundColor: p.color,
-                                    boxShadow: `1px 1px 12px 4px ${p.color}`,
-                                  }}
-                                />
-                                <Title order={4} style={{ color: "black" }}>
-                                  {p.username}
-                                </Title>
-                              </Group>
-                            ))}
-                          </Group>
-                          <Group>
-                            {img.awards.map((award) => {
-                              return (
-                                <HoverCard>
-                                  <HoverCard.Target>
-                                    <Image
-                                      src={awardNamesIconMap[award.name]}
-                                      w={75}
+                        ))}
+                      </ScrollArea>
+                    )}
+                  </Stack>
+                  <div style={{ height: 700, display: "flex" }}>
+                    <Carousel
+                      withControls={false}
+                      orientation="vertical"
+                      slideSize="100%"
+                      height="100%"
+                      style={{ flex: 1 }}
+                      plugins={[autoplay.current]}
+                      onMouseLeave={() => autoplay.current.play()}
+                    >
+                      {leaderboardImgs.map((img) => (
+                        <Carousel.Slide>
+                          <Stack align="center">
+                            <Box
+                              p={20}
+                              bg="black"
+                              style={{ transform: "skewX(-10deg)" }}
+                            >
+                              <Title order={3}>{img.image.title}</Title>
+                            </Box>
+                            <Image w={400} src={img.image.dUri} />
+                            <Group>
+                              <Stack>
+                                {img.image.artists.map((p) => (
+                                  <Group>
+                                    <Avatar
+                                      size="lg"
+                                      src={
+                                        p.avatar_data_url
+                                          ? p.avatar_data_url
+                                          : "/imgs/crackbox-logo-2.png"
+                                      }
+                                      style={{
+                                        backgroundColor: p.color,
+                                        boxShadow: `1px 1px 12px 4px ${p.color}`,
+                                      }}
                                     />
-                                  </HoverCard.Target>
-                                  <HoverCard.Dropdown>
-                                    <Text size="sm">
-                                      {award.name} - ${award.bonus} -{" "}
-                                      {awardNamesDescMap[award.name]}
-                                    </Text>
-                                  </HoverCard.Dropdown>
-                                </HoverCard>
-                              );
-                            })}
-                          </Group>
-                        </Stack>
-                      </Carousel.Slide>
-                    ))}
-                  </Carousel>
-                </div>
-              </Group>
+                                    <Title order={4} style={{ color: "black" }}>
+                                      {p.username}
+                                    </Title>
+                                  </Group>
+                                ))}
+                                <Group justify="center">
+                                  <Title c="black" order={5}>${img.image.points}</Title>
+                                </Group>
+                              </Stack>
+                            </Group>
+                            <Group>
+                              {img.awards.map((award) => {
+                                return (
+                                  <HoverCard>
+                                    <HoverCard.Target>
+                                      <Image
+                                        src={awardNamesIconMap[award.name]}
+                                        w={75}
+                                      />
+                                    </HoverCard.Target>
+                                    <HoverCard.Dropdown>
+                                      <Text size="sm">
+                                        {award.name} - ${award.bonus} -{" "}
+                                        {awardNamesDescMap[award.name]}
+                                      </Text>
+                                    </HoverCard.Dropdown>
+                                  </HoverCard>
+                                );
+                              })}
+                            </Group>
+                          </Stack>
+                        </Carousel.Slide>
+                      ))}
+                    </Carousel>
+                  </div>
+                </Group>
+              </ScrollArea>
             )}
           </div>
         </HostComponent>

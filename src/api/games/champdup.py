@@ -113,6 +113,7 @@ class Poll(BaseModel):
 
 class Image(BaseModel):
     title: str
+    points: int | float = 0
     dUri: str | None = None
     artists: list[Player]
     prompt: str
@@ -503,6 +504,7 @@ class ChampdUp(Game):
             winner: Image = matchup.left
 
             def award_points_to_artists(im: Image, inc: int) -> None:
+                im.points += inc
                 for artist in im.artists:
                     self.players[artist.username].points += inc
 
