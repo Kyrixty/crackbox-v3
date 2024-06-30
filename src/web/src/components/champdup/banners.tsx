@@ -1,4 +1,4 @@
-import { Box, Group, Image, Title } from "@mantine/core";
+import { Box, Group, Image, Stack, Title } from "@mantine/core";
 
 export const FightBanner = () => {
   return (
@@ -23,15 +23,18 @@ export const FightBanner = () => {
   );
 };
 
-export const PromptBanner = ({prompt}: {prompt: string}) => {
+export const PromptBanner = ({ prompt }: { prompt: string }) => {
   return (
     <Box id="prompt-banner" w="100vw">
       <Group justify="center">
-        <Box bg="black" style={{ borderRadius: 10 }} p={"20px 80px"}>
-          <Title c="white" order={2}>
-            {prompt}
-          </Title>
-        </Box>
+        <Stack align="center">
+          <Title c="black">THE CHAMPION OF</Title>
+          <Box bg="black" style={{ borderRadius: 10 }} p={"20px 80px"}>
+            <Title c="white" order={2}>
+              {prompt.toUpperCase()}
+            </Title>
+          </Box>
+        </Stack>
       </Group>
     </Box>
   );

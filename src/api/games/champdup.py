@@ -608,6 +608,8 @@ class ChampdUp(Game):
                 value={
                     "winner": winner,
                     "points": lp if llv >= lrv else rp,
+                    "left_points": lp,
+                    "right_points": rp,
                     "awards": awards,
                     "ends": ends.isoformat(),
                 },

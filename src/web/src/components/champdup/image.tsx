@@ -7,10 +7,12 @@ import {
 import { useMessenger } from "@lib/context/ws";
 import {
   Affix,
+  Avatar,
   Box,
   Card,
   Group,
   Image,
+  Overlay,
   SimpleGrid,
   Stack,
   Text,
@@ -28,11 +30,15 @@ import { randomIntFromInterval } from "@utils/rand";
 import { useGameStyleContext } from "@lib/context/game";
 import { getColorRepresentation } from "@utils/color";
 import ProgressBar from "@ramonak/react-progress-bar";
+import CountUp from "react-countup";
 
 import godlike from "/audio/godlike.mp3";
 import holy from "/audio/holy.mp3";
 import therapy from "/audio/therapy.mp3";
 import fire from "/audio/fire.wav";
+import coins from "/audio/coins.wav";
+import boxingbell from "/audio/boxing-bell.mp3";
+import money from "/audio/money-counter.mp3";
 
 import { getSounds } from "@utils/sound";
 import { PromptBanner } from "./banners";
@@ -69,12 +75,15 @@ export const HostMatchupController = ({
 
   const [leftImg, setLeftImg] = useState<ImageData | undefined>();
   const [rightImg, setRightImg] = useState<ImageData | undefined>();
+  const [prompt, setPrompt] = useState("");
 
   const [pMounted, setPMounted] = useState(false);
+  const [bellPlay] = useSound(boxingbell, {volume: 0.1});
 
   const handleNewMatchup = (leftImage: ImageData, rightImage: ImageData) => {
     setLeftImg(leftImage);
     setLeftMounted(true);
+    setPrompt(leftImage.prompt);
     setTimeout(() => {
       setRightImg(rightImage);
       setRightMounted(true);
@@ -135,6 +144,9 @@ export const HostMatchupController = ({
         }, DURATION * 2);
       }
     }
+    if (lastJsonMessage.type === MessageType.MATCHUP_RESULT) {
+      bellPlay();
+    }
   }, [lastJsonMessage]);
 
   return (
@@ -188,13 +200,64 @@ export const HostMatchupController = ({
             if (!left.image) return <></>;
             return (
               <Box style={{ ...styles }}>
-                <PromptBanner prompt={left.image.prompt} />
+                <PromptBanner prompt={prompt} />
               </Box>
             );
           }}
         </Transition>
       </Affix>
     </Box>
+  );
+};
+
+interface ArtistCreditsProps {
+  img: ImageData;
+  points: number;
+  playSfx: boolean;
+}
+
+const ArtistCredits = ({ img, playSfx, points }: ArtistCreditsProps) => {
+  const [coinsPlay] = useSound(coins, { volume: 0.5 });
+  return (
+    <Stack align="center">
+      <Group justify="center">
+        {img.artists.map((artist) => (
+          <Avatar
+            style={{boxShadow: "0px 0px 3px black"}}
+            variant="filled"
+            src={
+              artist.avatar_data_url
+                ? artist.avatar_data_url
+                : "/imgs/crackbox-logo-2.png"
+            }
+            size="lg"
+            color={artist.color}
+          />
+        ))}
+      </Group>
+      <CountUp
+        onEnd={() => {
+          coinsPlay();
+        }}
+        start={0}
+        separator=","
+        end={points}
+        duration={3}
+        delay={0}
+      >
+        {({ countUpRef }) => (
+          <div>
+            <Title
+              c="lime"
+              order={3}
+              style={{ textShadow: "2px 2px 1px black" }}
+            >
+              $<span ref={countUpRef} />
+            </Title>
+          </div>
+        )}
+      </CountUp>
+    </Stack>
   );
 };
 
@@ -212,8 +275,13 @@ export const HostImageCandidate = ({
     const onFire = votesPct >= 70;
     if (onFire) {
       if (!fireCache) {
+        if (fireStop) {
+          fireStop();
+        }
         firePlay();
-        sounds[randomIntFromInterval(0, sounds.length - 1)][0]();
+        const [play, {stop}] = sounds[randomIntFromInterval(0, sounds.length - 1)];
+        play();
+        setFireStop(stop);
       }
     }
     setFireCache(onFire);
@@ -222,7 +290,11 @@ export const HostImageCandidate = ({
   const sounds = getSounds([godlike, holy, therapy], 0.1);
   const [firePlay] = useSound(fire, { volume: 0.3 });
   const [started, setStarted] = useState(false);
-  const { lastJsonMessage } = useMessenger();
+  const [blur, setBlur] = useState(false);
+  const { lastJsonMessage } = useMessenger<MessageType>();
+  const [points, setPoints] = useState(0);
+  const [moneySfx] = useSound(money, {volume: 0.03});
+  const [fireStop, setFireStop] = useState<null | (() => void)>(null);
 
   const skew = isLeft ? "-10deg" : "10deg";
   const votesPct = (votes.length / totalVotes) * 100;
@@ -244,8 +316,26 @@ export const HostImageCandidate = ({
 
   useEffect(() => {
     if (lastJsonMessage === null) return;
+    if (
+      [MessageType.MATCHUP, MessageType.MATCHUP_START].includes(
+        lastJsonMessage.type
+      )
+    ) {
+      setBlur(false);
+    }
+    if (lastJsonMessage.type === MessageType.MATCHUP_RESULT) {
+      if (isLeft) {
+        setPoints(lastJsonMessage.value.left_points);
+      } else {
+        setPoints(lastJsonMessage.value.right_points);
+      }
+      console.log(lastJsonMessage.value.left_points);
+      console.log(lastJsonMessage.value.right_points);
+      setTimeout(() => {setBlur(true); moneySfx()}, 2000);
+    }
     if (lastJsonMessage.type === MessageType.MATCHUP_START) {
       setStarted(true);
+      setBlur(false);
     }
     if (
       lastJsonMessage.type === MessageType.MATCHUP ||
@@ -280,6 +370,15 @@ export const HostImageCandidate = ({
         src={image.dUri}
         w={300}
       />
+      <Box pos="absolute" top="50%" left="50%">
+        <Transition mounted={blur} transition="slide-down">
+          {(styles) => (
+            <Box style={{ ...styles }} w="100%">
+              <ArtistCredits playSfx={!!isLeft} img={image} points={points} />
+            </Box>
+          )}
+        </Transition>
+      </Box>
     </Stack>
   );
 };
