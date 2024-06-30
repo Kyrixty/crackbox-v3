@@ -30,6 +30,8 @@ DEFAULT_PUBLIC_ATTRS = {
     "draw_duration": 120,
     "vote_duration": 10,
     "force_next_event_after_all_images_received": True,
+    "custom_prompts": "",
+    "custom_prompts_only": False, 
 }
 
 task_threads = []
@@ -210,12 +212,23 @@ class DrawManager:
     def get_images(self) -> list[Image]:
         return list(self.images.values())
     
+    def process_custom_prompts(self, custom_prompts: list[str], custom_prompts_only: bool) -> None:
+        if len(custom_prompts) == 0:
+            return
+        if custom_prompts_only:
+            self.prompt_pool = custom_prompts.copy()
+            return
+        self.prompt_pool.extend(custom_prompts)
+    
     def reset(self):
         self.images = {}
+        pcopy = self.prompt_pool.copy()
 
         for player in self.players:
-            prompt = random.choice(self.prompt_pool)
-            self.prompt_pool.remove(prompt)
+            if len(pcopy) == 0:
+                pcopy = self.prompt_pool.copy()
+            prompt = random.choice(pcopy)
+            pcopy.remove(prompt)
             self.prompts[player.username] = prompt
             self.images[player.username] = Image(title=get_random_title(player.username), dUri=didnt_draw_data_uri, artists=[player], prompt=prompt)
 
@@ -388,6 +401,11 @@ class ChampdUp(Game):
         if event.name == "L":
             self.leaderboard = sorted(self.get_player_list(), key=lambda p: p.points, reverse=True)
         if event.name in ("D1", "D2"):
+            if event.name ==  "D1":
+                self.draw_manager.process_custom_prompts(
+                    self.get_public_field("custom_prompts"),
+                    self.get_public_field("custom_prompts_only")
+                )
             self.draw_manager.players = self.get_player_list()
             self.ready_manager.reset(self.get_player_list())
             self.draw_manager.reset()
@@ -695,6 +713,19 @@ class ChampdUp(Game):
                     errors.append((k, "Value must be at least 10 (seconds)"))
                     continue
             if k == "force_next_event_after_all_images_received":
+                try:
+                    v = bool(v)
+                except Exception:
+                    errors.append((k, "Value must be a boolean value"))
+                    continue
+            if k == "custom_prompts":
+                try:
+                    v = str(v)
+                    v = v.split(";")
+                except Exception:
+                    errors.append((k, "Value must be a string and each prompt must be separated by a semi-colon (;)"))
+                    continue
+            if k == "custom_prompts_only":
                 try:
                     v = bool(v)
                 except Exception:
