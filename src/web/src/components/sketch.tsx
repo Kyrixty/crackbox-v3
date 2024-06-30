@@ -75,7 +75,7 @@ const SketchPadCounterModal = ({ opened, open, close, imgData }: SPCMProps) => {
   return (
     <Modal opened={opened} onClose={close}>
       <Stack align="center">
-        <Title order={4}>Counter this champion!</Title>
+        <Title>Counter this champion!</Title>
         <Card bg="white">
           <Card.Section>
             <Image src={imgData.dUri} w={150} />
@@ -83,7 +83,7 @@ const SketchPadCounterModal = ({ opened, open, close, imgData }: SPCMProps) => {
         </Card>
       </Stack>
       <Group justify="center">
-        <Title>{imgData.title}</Title>
+        <Title order={4}>{imgData.title}</Title>
       </Group>
     </Modal>
   );
