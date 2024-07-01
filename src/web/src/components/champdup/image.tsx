@@ -189,7 +189,7 @@ export const HostMatchupController = ({
           )}
         </Transition>
       </Group>
-      <Affix bottom="5vh">
+      <Affix bottom="5vh" left="50vw" style={{transform: "translateX(-50%)"}}>
         <Transition
           mounted={pMounted}
           transition="slide-up"
@@ -223,7 +223,7 @@ const ArtistCredits = ({ img, playSfx, points }: ArtistCreditsProps) => {
       <Group justify="center">
         {img.artists.map((artist) => (
           <Avatar
-            style={{boxShadow: "0px 0px 3px black"}}
+            style={{boxShadow: "0px 0px 3px black", backgroundColor: artist.color}}
             variant="filled"
             src={
               artist.avatar_data_url

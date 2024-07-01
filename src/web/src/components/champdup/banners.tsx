@@ -25,7 +25,7 @@ export const FightBanner = () => {
 
 export const PromptBanner = ({ prompt }: { prompt: string }) => {
   return (
-    <Box id="prompt-banner" w="100vw">
+    <Box id="prompt-banner">
       <Group justify="center">
         <Stack align="center">
           <Title c="black">THE CHAMPION OF</Title>
