@@ -9,6 +9,7 @@ import {
   ActionIcon,
   Affix,
   Avatar,
+  AvatarGroup,
   Box,
   Button,
   Card,
@@ -212,7 +213,11 @@ const AudioController = () => {
     }
     if (
       currentEvent &&
-      [EventNames.FirstDraw, EventNames.SecondDraw].includes(currentEvent.name)
+      [
+        EventNames.FirstDraw,
+        EventNames.SecondDraw,
+        EventNames.BonusDraw,
+      ].includes(currentEvent.name)
     ) {
       stopIfCurrentExists();
       setCurrent({ play: stalPlay, stop: stalStop, sound: stalSound });
@@ -221,7 +226,11 @@ const AudioController = () => {
     }
     if (
       currentEvent &&
-      [EventNames.FirstVote, EventNames.SecondVote].includes(currentEvent.name)
+      [
+        EventNames.FirstVote,
+        EventNames.SecondVote,
+        EventNames.BonusVote,
+      ].includes(currentEvent.name)
     ) {
       if (current && current.play === votePlay) return;
       stopIfCurrentExists();
@@ -428,6 +437,7 @@ const RunningComponent = () => {
   const [sePlay] = useSound(sickem, { volume: 0.4 });
   const [fMounted, setFMounted] = useState(false);
   const [pMounted, setPMounted] = useState(false);
+  const [teammates, setTeammates] = useState<Player[]>([]);
 
   const fBannerDuration = 500;
 
@@ -491,6 +501,9 @@ const RunningComponent = () => {
         setRightVotes(lastJsonMessage.value.matchup.rightVotes);
         setInGrace(lastJsonMessage.value.matchup.started);
       }
+      if (lastJsonMessage.value.team) {
+        setTeammates(lastJsonMessage.value.team);
+      }
     }
 
     if (lastJsonMessage.type === MessageType.IMAGE_SWAP) {
@@ -540,6 +553,9 @@ const RunningComponent = () => {
       setLeaderboard(currentEventData.leaderboard);
       setLeaderboardImgs(currentEventData.leaderboard_images);
     }
+    if (currentEventData.team) {
+      setTeammates(currentEventData.team);
+    }
   }, [currentEventData]);
 
   useEffect(() => {
@@ -554,7 +570,11 @@ const RunningComponent = () => {
       );
       setClassName("translate-background-upper-right");
     } else if (
-      [EventNames.FirstVote, EventNames.SecondVote].includes(currentEvent.name)
+      [
+        EventNames.FirstVote,
+        EventNames.SecondVote,
+        EventNames.BonusVote,
+      ].includes(currentEvent.name)
     ) {
       if (isHost) {
         setBg("black url('/imgs/crackbox-arena.gif') 0px 0px/cover round");
@@ -582,6 +602,8 @@ const RunningComponent = () => {
           EventNames.FirstCounter,
           EventNames.SecondDraw,
           EventNames.SecondCounter,
+          EventNames.BonusDraw,
+          EventNames.BonusCounter,
         ]}
       >
         <HostComponent>
@@ -619,10 +641,16 @@ const RunningComponent = () => {
           </Stack>
         </HostComponent>
         <PlayerComponent>
-          <SketchPad gameData={currentEventData} />
+          <SketchPad teammates={teammates} gameData={currentEventData} />
         </PlayerComponent>
       </EventComponent>
-      <EventComponent name={[EventNames.FirstVote, EventNames.SecondVote]}>
+      <EventComponent
+        name={[
+          EventNames.FirstVote,
+          EventNames.SecondVote,
+          EventNames.BonusVote,
+        ]}
+      >
         <HostComponent>
           <Affix top="10vh">
             <Transition
@@ -768,25 +796,32 @@ const RunningComponent = () => {
                           <Image w={400} src={img.image.dUri} />
                           <Group>
                             <Stack>
-                              {img.image.artists.map((p) => (
-                                <Group>
-                                  <Avatar
-                                    size="lg"
-                                    src={
-                                      p.avatar_data_url
-                                        ? p.avatar_data_url
-                                        : "/imgs/crackbox-logo-2.png"
-                                    }
-                                    style={{
-                                      backgroundColor: p.color,
-                                      boxShadow: `1px 1px 12px 4px ${p.color}`,
-                                    }}
-                                  />
-                                  <Title order={4} style={{ color: "black" }}>
-                                    {p.username}
-                                  </Title>
-                                </Group>
-                              ))}
+                              <Group justify="center">
+                                {img.image.artists.map((p) => (
+                                  <>
+                                    <Avatar
+                                      size="lg"
+                                      src={
+                                        p.avatar_data_url
+                                          ? p.avatar_data_url
+                                          : "/imgs/crackbox-logo-2.png"
+                                      }
+                                      style={{
+                                        backgroundColor: p.color,
+                                        boxShadow: `1px 1px 12px 4px ${p.color}`,
+                                      }}
+                                    />
+                                    {img.image.artists.length === 1 && (
+                                      <Title
+                                        order={4}
+                                        style={{ color: "black" }}
+                                      >
+                                        {p.username}
+                                      </Title>
+                                    )}
+                                  </>
+                                ))}
+                              </Group>
                               <Group justify="center">
                                 <Title c="black" order={5}>
                                   ${img.image.points}

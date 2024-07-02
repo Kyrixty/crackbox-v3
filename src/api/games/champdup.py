@@ -142,6 +142,9 @@ class ImageMatchup(BaseModel):
     def add_vote(self, username: str, target: Literal["left", "right"]):
         if not self.initial_leader:
             self.initial_leader = target
+        for a1, a2 in zip(self.left.artists, self.right.artists):
+            if username in (a1.username, a2.username):
+                return
         if target == "left":
             if username in self.rightVotes:
                 self.rightVotes.remove(username)
@@ -342,15 +345,169 @@ class LeaderboardImage(BaseModel):
     image: Image
     awards: list[Award]
 
-RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "B", "L"]
+RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "BD", "BC", "BV", "L"]
 
 # Note: technically all of the events have timers attached but vote events
 # and the bonus round timers behave differently (vote timer is per image,
 # multiple types of bonus rounds with different timers each). The events 
 # below can be handled generically though
-TIMED_EVENTS = ["D1", "C1", "D2", "C2"]
+TIMED_EVENTS = ["D1", "C1", "D2", "C2", "BD", "BC"]
 
 IVR_TIMEOUT = 10 # seconds
+
+TEAM_ID = int
+TEAMS = dict[TEAM_ID, list[str]]
+PLAYER_TEAMS_MAP = dict[str, TEAM_ID]
+
+class TeamsManager:
+    '''The game must have at least 4 players
+    for the bonus round to work.'''
+    def __init__(self) -> None:
+        self.players: list[Player] = []
+        self.teams: TEAMS = {}
+        self.p_team_map: PLAYER_TEAMS_MAP = {}
+        self.prompt_pool = prompts.copy()
+        self.prompts: dict[TEAM_ID, str] = {}
+
+        self.images: dict[TEAM_ID, Image] = {}
+        self.team_ctr_map: dict[TEAM_ID, TEAM_ID] = {}
+        self.ctrs: dict[TEAM_ID, Image] = {}
+    
+    def get_players_from_team(self, team_id: TEAM_ID) -> list[Player]:
+        '''Ensure team_id is valid otherwise KeyError is raised'''
+        return [self.get_player(uname) for uname in self.get_team_by_id(team_id)]
+    
+    def process_custom_prompts(self, custom_prompts: list[str], custom_prompts_only: bool) -> None:
+        if len(custom_prompts) == 0:
+            return
+        if custom_prompts_only:
+            self.prompt_pool = custom_prompts.copy()
+            return
+        self.prompt_pool.extend(custom_prompts)
+    
+    def get_team_prompt(self, team_id: TEAM_ID) -> str:
+        return self.prompts[team_id]
+        print(self.prompts) #DEBUG
+    
+    def get_player_prompt_by_username(self, username: str) -> str:
+        team_id = self.get_player_team_id_by_username(username)
+        return self.prompts[team_id]
+
+    def reset(self) -> None:
+        self.teams: TEAMS = {}
+        self.p_team_map: PLAYER_TEAMS_MAP = {}
+
+        self.images: dict[TEAM_ID, Image] = {}
+        self.team_ctr_map: dict[TEAM_ID, TEAM_ID] = {}
+        self.ctrs: dict[TEAM_ID, Image] = {}
+        self.prompt_pool = prompts.copy()
+        self.prompts: dict[TEAM_ID, str] = {}
+
+    def get_player(self, username: str) -> Player:
+        for plr in self.players:
+            if plr.username == username:
+                return plr
+    
+    def add_image(self, username: str, img: Image) -> None:
+        img.last_changed = datetime.datetime.now().isoformat()
+        team_id = self.get_player_team_id_by_username(username)
+        team_players = [self.get_player(uname) for uname in self.get_team_by_id(team_id)]
+        img.artists = team_players
+        self.images[team_id] = img
+
+    
+    def get_player_counter_by_username(self, username: str) -> Image:
+        team_id = self.get_player_team_id_by_username(username)
+        return self.images[self.team_ctr_map[team_id]]
+
+    def create_counters(self) -> None:
+        team_ids = list(self.teams.keys())
+        offset = random.randint(1, len(team_ids) - 1)
+        ctr_team_ids = [((tid + offset) % len(team_ids)) for tid in team_ids]
+        print(team_ids, ctr_team_ids)
+        for team_id, c_team_id in zip(team_ids, ctr_team_ids):
+            self.team_ctr_map[team_id] = c_team_id
+            self.ctrs[team_id] = Image(
+                title=get_random_title("This team"),
+                dUri=didnt_draw_data_uri,
+                artists=self.get_players_from_team(team_id),
+                prompt=self.images[c_team_id].prompt,
+                last_changed=datetime.datetime.now().isoformat(),
+            )
+    
+    def add_counter(self, username: str, img: Image) -> None:
+        img.last_changed = datetime.datetime.now().isoformat()
+        team_id = self.get_player_team_id_by_username(username)
+        team_players = [self.get_player(uname) for uname in self.get_team_by_id(team_id)]
+        img.artists = team_players
+        self.ctrs[team_id] = img
+
+    
+    def get_matchups(self) -> list[ImageMatchup]:
+        matchups = []
+        for c_team_id, img in self.ctrs.items():
+            og_team_id = self.team_ctr_map[c_team_id]
+            og_img = self.images[og_team_id]
+            matchups.append(ImageMatchup(left=og_img, right=img, leftVotes=set(), rightVotes=set()))
+        random.shuffle(matchups)
+        return matchups
+
+    
+    def create_teams(self, players: list[Player]) -> None:
+        '''THERE MUST BE AT LEAST 4 PLAYERS IN THE GAME!
+        
+        This method will create teams for each player in the game.
+        If there are an odd number of players, one team will have 3
+        players on it. In the points awarder, an award will be given
+        to a team that beats a team who had more players than them
+        (OUTNUMBERED AWARD, $200 * len(enemy_artists)).
+        
+        Teams are created by shuffling players, then each team is made
+        up of player pairs (where possible) in a sequential manner. If
+        there are an odd number of players, the final player that is left
+        out will join the most recently created team.'''
+        self.players = players.copy()
+        random.shuffle(self.players)
+        plen = len(self.players)
+        ctr = 0
+        for i in range(0, plen, 2):
+            team_id = ctr
+            if i == plen - 1:
+                # odd number of players, last player will join most recently created team
+                ids = [j for j in self.teams.keys()]
+                id = max(ids)
+                plr = self.players[i]
+                self.teams[id].append(plr.username)
+                break
+            plr = self.players[i]
+            teammate = self.players[i+1]
+            self.teams[team_id] = [plr.username, teammate.username]
+            self.p_team_map[plr.username] = team_id
+            self.p_team_map[teammate.username] = team_id
+            ctr += 1
+        
+        # Create prompts
+        pcopy = self.prompt_pool.copy()
+        for team_id in self.teams:
+            if len(pcopy) == 0:
+                pcopy = self.prompt_pool.copy()
+            prompt = random.choice(pcopy)
+            pcopy.remove(prompt)
+            self.prompts[team_id] = prompt
+            self.images[team_id] = Image(title=get_random_title("This team"), dUri=didnt_draw_data_uri, artists=self.get_players_from_team(team_id), prompt=prompt)
+
+    
+    def has_teams(self) -> bool:
+        return len(self.players) and len(self.teams) and len(self.p_team_map)
+    
+    def get_player_team_id(self, player: Player) -> TEAM_ID:
+        return self.p_team_map[player.username]
+    
+    def get_player_team_id_by_username(self, username: str) -> TEAM_ID:
+        return self.p_team_map[username]
+    
+    def get_team_by_id(self, id: TEAM_ID) -> list[str]:
+        return self.teams[id]
 
 class IVRMode(str, Enum, metaclass=MetaEnum):
     Normal = "normal"
@@ -369,6 +526,7 @@ class ChampdUp(Game):
         self.events: list[Event] = []
         for event_name in RUNNING_EVENTS:
             self.events.append(Event(name=event_name, timed=event_name in TIMED_EVENTS))
+        self.teams_manager = TeamsManager()
         self.draw_manager = DrawManager([])
         self.ctr_manager = CounterManager({}, [])
         self.ready_manager = ReadyManager()
@@ -397,12 +555,23 @@ class ChampdUp(Game):
         event = self.get_current_event()
         self.create_new_timer(self.iter_game_events)
         self.debug(f"Processing {event.name}..")
-        if event.name == "B" and not self.get_public_field("bonus_round_enabled"):
+        if event.name.startswith("B") and (not self.get_public_field("bonus_round_enabled") or len(self.get_player_list()) < 4):
+            if not self.get_public_field("bonus_round_enabled"):
+                self.log("Bonus rounds disabled, skipping..")
+            else:
+                self.log("Bonus rounds enabled but not enough players (min. 4), skipping..")
             return await self.iter_game_events()
         if event.name == "L":
             self.leaderboard = sorted(self.get_player_list(), key=lambda p: p.points, reverse=True)
-        if event.name in ("D1", "D2"):
-            if event.name ==  "D1":
+        if event.name in ("D1", "D2", "BD"):
+            if event.name == "BD":
+                self.teams_manager.reset()
+                self.teams_manager.create_teams(self.get_player_list())
+                self.teams_manager.process_custom_prompts(
+                    self.get_public_field("custom_prompts"),
+                    self.get_public_field("custom_prompts_only"),
+                )
+            if event.name == "D1":
                 self.draw_manager.process_custom_prompts(
                     self.get_public_field("custom_prompts"),
                     self.get_public_field("custom_prompts_only")
@@ -410,23 +579,29 @@ class ChampdUp(Game):
             self.draw_manager.players = self.get_player_list()
             self.ready_manager.reset(self.get_player_list())
             self.draw_manager.reset()
-        if event.name in ("C1", "C2"):
+        if event.name in ("C1", "C2", "BC"):
+            if event.name == "BC":
+                self.teams_manager.create_counters()
             self.ctr_manager.reset()
             self.ready_manager.reset(self.get_player_list())
             self.ctr_manager.players = self.get_player_list()
             self.ctr_manager.set_ctr_img_map(self.draw_manager.create_counters())
-        if event.name in ("V1", "V2"):
+        if event.name in ("V1", "V2", "BV"):
             self.matchup_manager.reset()
             # Setup matchup manager state before broadcasting & handling vote rounds
-            for matchup in self.ctr_manager.get_matchups():
-                self.matchup_manager.add_matchup(matchup.left, matchup.right)
+            if event.name == "BV":
+                for matchup in self.teams_manager.get_matchups():
+                    self.matchup_manager.add_matchup(matchup.left, matchup.right)
+            else:
+                for matchup in self.ctr_manager.get_matchups():
+                    self.matchup_manager.add_matchup(matchup.left, matchup.right)
         if event.timed:
             ends = (datetime.datetime.now() + datetime.timedelta(seconds=self.get_public_field("draw_duration")))
             event.ends = ends.isoformat()
             await self.timer.start(ends)
         for username in self.ws_map:
             await self.send(self.ws_map[username], MessageSchema(type=MessageType.STATE, value=self.get_game_state(username), author=0))
-        if event.name in ("V1", "V2"):
+        if event.name in ("V1", "V2", "BV"):
             # Begin handling vote rounds
             await self.iter_vote_round()
     
@@ -489,7 +664,10 @@ class ChampdUp(Game):
 
             # Calculate points
             lp, rp = 0, 0
-            scalar_w = 1897 * int(self.get_current_event().name[1]) # either V1 or V2, we want points to be doubled during second round
+            if self.get_current_event().name == "BV":
+                scalar_w = int(1897 * 2.5)
+            else:
+                scalar_w = 1897 * int(self.get_current_event().name[1]) # either V1 or V2, we want points to be doubled during second round
             scalar_l = 949
 
             # We want at least (roughly) 50% of eligible players to have voted for a bonus
@@ -575,11 +753,17 @@ class ChampdUp(Game):
             else:
                 winner_submitted = datetime.datetime.fromisoformat(winner.last_changed)
                 if winner == matchup.left:
-                    draw_event_name = self.get_current_event().name.replace("V", "D")
-                    event_ends = self.events[0 if draw_event_name == "D1" else 3].ends
+                    if self.get_current_event().name == "BV":
+                        event_ends = self.events[6].ends
+                    else:
+                        draw_event_name = self.get_current_event().name.replace("V", "D")
+                        event_ends = self.events[0 if draw_event_name == "D1" else 3].ends
                 else:
-                    ctr_event_name = self.get_current_event().name.replace("V", "C")
-                    event_ends = self.events[1 if ctr_event_name == "C1" else 4].ends
+                    if self.get_current_event().name == "BV":
+                        event_ends = self.events[7].ends
+                    else:
+                        ctr_event_name = self.get_current_event().name.replace("V", "C")
+                        event_ends = self.events[1 if ctr_event_name == "C1" else 4].ends
                 event_ends = datetime.datetime.fromisoformat(event_ends)
                 event_starts = event_ends - datetime.timedelta(seconds=self.get_public_field("draw_duration"))
                 if winner_submitted < event_ends:
@@ -643,23 +827,37 @@ class ChampdUp(Game):
     
     def get_game_state(self, username: str | int) -> dict[str, Any]:
         event_data = {}
-        if self.get_current_event().name in ("D1", "D2"):
+        if self.get_current_event().name in ("D1", "D2", "BD"):
             if username != 0:
+                prompt = self.draw_manager.prompts[username]
+                if self.get_current_event().name == "BD":
+                    team_id = self.teams_manager.get_player_team_id_by_username(username)
+                    prompt = self.teams_manager.get_team_prompt(team_id)
                 event_data = {
-                    "prompt": self.draw_manager.prompts[username],
+                    "prompt": prompt,
                     "players_ready": self.ready_manager.ready,
                 }
-        if self.get_current_event().name in ("C1", "C2"):
+        if self.get_current_event().name in ("C1", "C2", "BC"):
             if username != 0:
+                ctr = self.ctr_manager.ctr_img_map[username]
+                if self.get_current_event().name == "BC":
+                    ctr = self.teams_manager.get_player_counter_by_username(username)
                 event_data = {
-                    "counter": self.ctr_manager.ctr_img_map[username],
+                    "counter": ctr,
                     "players_ready": self.ready_manager.ready,
                 }
-        if self.get_current_event().name in ("V1", "V2"):
+        if self.get_current_event().name in ("V1", "V2", "BV"):
             if self.matchup_manager.has_started():
                 event_data = {
                     "matchup": self.matchup_manager.get_matchup(),
                 }
+        if self.get_current_event().name in ("BD", "BC"):
+            if username != 0:
+                self.error("HELLO")
+                team_id = self.teams_manager.get_player_team_id_by_username(username)
+                team = self.teams_manager.get_team_by_id(team_id)
+                teammates = [self.get_player(uname).data for uname in team if uname != username]
+                event_data["team"] = teammates
         if self.get_current_event().name == "L":
             event_data = {
                 "leaderboard": self.leaderboard,
@@ -868,6 +1066,9 @@ class ChampdUp(Game):
                 if msg.value.strip() == "/kill":
                     await self.kill()
                     return pm
+                if msg.value.strip() == "/brff":
+                    self.event_idx = RUNNING_EVENTS.index("BD") - 1
+                    await self.iter_game_events()
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
                 pm.add_broadcast(msg.type, msg.value, 0)
@@ -910,40 +1111,68 @@ class ChampdUp(Game):
                 return self.handle_poll_vote(msg.value.lower(), username)
         
         MAX_TITLE_LENGTH = 64
-        if self.get_current_event().name in ("D1", "D2"):
+        if self.get_current_event().name in ("D1", "D2", "BD"):
             if msg.type == MessageType.IMAGE:
                 # User submitted draw image
                 if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]) <= MAX_TITLE_LENGTH:
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
-                    im = Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username])
-                    self.draw_manager.add_image(username, Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username]))
+                    artists = [self.get_player(username).data]
+                    prompt = self.draw_manager.prompts[username]
+                    if self.get_current_event().name == "BD":
+                        title = get_random_title("This team")
+                        team_id = self.teams_manager.get_player_team_id_by_username(username)
+                        artists = self.teams_manager.get_players_from_team(team_id)
+                        prompt = self.teams_manager.get_player_prompt_by_username(username)
+                    im = Image(title=title, dUri=msg.value["dUri"], artists=artists, prompt=prompt, last_changed=datetime.datetime.now().isoformat())
+                    if self.get_current_event().name == "BD":
+                        self.teams_manager.add_image(username, im)
+                    else:
+                        self.draw_manager.add_image(username, im)
                     self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
-                    self.ready_manager.set_ready(self.get_player(username).data)
+                    to_ready = [self.get_player(username).data]
+                    if self.get_current_event().name == "BD":
+                        to_ready = self.teams_manager.get_players_from_team(self.teams_manager.get_player_team_id_by_username(username))
+                    for player in to_ready:
+                        self.ready_manager.set_ready(player)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
-        if self.get_current_event().name in ("C1", "C2"):
+        if self.get_current_event().name in ("C1", "C2", "BC"):
             if msg.type == MessageType.IMAGE:
                 if type(msg.value) == dict and "dUri" in msg.value and type(msg.value["dUri"]) == str and "title" in msg.value and type(msg.value["title"]) == str and len(msg.value["title"]) <= MAX_TITLE_LENGTH:
                     title = msg.value["title"]
                     if not title:
                         title = get_random_title(username)
-                    im = Image(title=title, dUri=msg.value["dUri"], artists=[self.get_player(username).data], prompt=self.draw_manager.prompts[username])
-                    self.ctr_manager.set_ctr(username, im)
+                    artists = [self.get_player(username).data]
+                    prompt = self.draw_manager.prompts[username]
+                    if self.get_current_event().name == "BC":
+                        title = get_random_title("This team")
+                        team_id = self.teams_manager.get_player_team_id_by_username(username)
+                        artists = self.teams_manager.get_players_from_team(team_id)
+                        prompt = self.teams_manager.get_player_prompt_by_username(username)
+                    im = Image(title=title, dUri=msg.value["dUri"], artists=artists, prompt=prompt, last_changed=datetime.datetime.now().isoformat())
+                    if self.get_current_event().name == "BC":
+                        self.teams_manager.add_counter(username, im)
+                    else:
+                        self.ctr_manager.set_ctr(username, im)
                     self.player_img_store.add_plr_img(self.get_player(username).data, im, self.get_current_event().name)
-                    self.ready_manager.set_ready(self.get_player(username).data)
+                    to_ready = [self.get_player(username).data]
+                    if self.get_current_event().name == "BC":
+                        to_ready = self.teams_manager.get_players_from_team(self.teams_manager.get_player_team_id_by_username(username))
+                    for player in to_ready:
+                        self.ready_manager.set_ready(player)
                     pm.add_msg(MessageType.NOTIFY, {"type": NotifyType.SUCCESS, "msg": "Your image submitted successfully!"}, 0)
                     if self.ready_manager.all_ready() and self.get_public_field("force_next_event_after_all_images_received"):
                         await self.iter_game_events()
                         self.debug("PUNGENT")
                         return pm
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
-        if self.get_current_event().name in ("V1", "V2"):
+        if self.get_current_event().name in ("V1", "V2", "BV"):
             if msg.type == MessageType.MATCHUP_VOTE:
                 if not self.matchup_manager.has_started() or not self.matchup_manager.voting_enabled:
                     return pm

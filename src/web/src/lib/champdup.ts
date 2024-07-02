@@ -31,7 +31,9 @@ export enum EventNames {
   SecondDraw = "D2",
   SecondCounter = "C2",
   SecondVote = "V2",
-  BonusRound = "B",
+  BonusDraw = "BD",
+  BonusCounter = "BC",
+  BonusVote = "BV",
   Leaderboard = "L",
 }
 
@@ -39,7 +41,7 @@ export type Event = {
   name: EventNames;
   timed: boolean;
   ends: string | null;
-}
+};
 
 export type ImageData = {
   artists: Player[];
@@ -53,7 +55,7 @@ export type ImageData = {
 export type SwapImage = {
   image: ImageData;
   image_hash: string;
-}
+};
 
 export enum AwardNames {
   DOMINATION = "DOMINATION",
@@ -67,12 +69,12 @@ export enum AwardNames {
 export type Award = {
   name: AwardNames;
   bonus: number;
-}
+};
 
 export type LeaderboardImage = {
   image: ImageData;
   awards: Award[];
-}
+};
 
 export type MatchupContext = {
   left: ImageData;

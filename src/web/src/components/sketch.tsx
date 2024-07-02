@@ -23,6 +23,8 @@ import {
 import { Canvas } from "@components/Canvas";
 import {
   ActionIcon,
+  Avatar,
+  AvatarGroup,
   Box,
   Button,
   Card,
@@ -56,6 +58,7 @@ import reminder1 from "/audio/reminder1.m4a";
 import reminder2 from "/audio/reminder2.m4a";
 import { getSounds } from "@utils/sound";
 import { randomIntFromInterval } from "@utils/rand";
+import { Player } from "@lib/player";
 
 type HexColor = React.CSSProperties["color"];
 type Change = ChangeEvent<HTMLInputElement>;
@@ -96,6 +99,14 @@ interface SPRMProps {
   setTitle: (t: string) => void;
 }
 const SketchPadReminderModal = (props: SPRMProps) => {
+  const reminderSounds = getSounds([reminder0, reminder1, reminder2], VOLUME);
+
+  useEffect(() => {
+    if (props.opened) {
+      reminderSounds[randomIntFromInterval(0, reminderSounds.length - 1)][0]();
+    }
+  }, [props.opened]);
+
   return (
     <Modal opened={props.opened} onClose={props.close}>
       <Stack>
@@ -138,6 +149,7 @@ export interface SketchPadProps {
   scale?: [number, number];
   controls?: SketchPadControlOptions;
   gameData?: SketchPadGameData | null;
+  teammates?: Player[];
 }
 
 const defaults: Required<SketchPadProps> = {
@@ -147,6 +159,7 @@ const defaults: Required<SketchPadProps> = {
   controls: { undo: true, exportJson: true, exportToPng: true, clear: true },
   id: "",
   gameData: null,
+  teammates: [],
 };
 
 export enum MessageType {
@@ -167,6 +180,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     lineJoin,
     lineWidth,
     gameData,
+    teammates,
   } = {
     ...defaults,
     ...props,
@@ -200,7 +214,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     useDisclosure(false);
   const { currentEvent } = useChampdUpContext();
   const [reminderExpires, setReminderExpires] = useState<Date | null>(null);
-  const reminderSounds = getSounds([reminder0, reminder1, reminder2], VOLUME);
+  const [currentPath, setCurrentPath] = useState<PathData | null>(null);
 
   useEffect(() => {
     if (!gameData) return;
@@ -222,32 +236,29 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
       const d0 = new Date();
       const d1 = new Date(currentEvent.ends);
       const duration = d1.getTime() - d0.getTime();
-      d0.setTime(d0.getTime() + duration * 0.9)
+      d0.setTime(d0.getTime() + duration * 0.9);
       setReminderExpires(d0);
     }
   }, [gameData]);
 
-  const ReminderTimerComponent = ({expiryTimestamp}: {expiryTimestamp: Date | null}) => {
+  const ReminderTimerComponent = ({
+    expiryTimestamp,
+  }: {
+    expiryTimestamp: Date | null;
+  }) => {
     if (!expiryTimestamp) return <></>;
 
-    const externalPlay = () => {
-      if (!hasSubmitted) {
-        const [play] = reminderSounds[randomIntFromInterval(0, reminderSounds.length - 1)];
-        play();
-      }
-    }
-
-    useTimer({expiryTimestamp, onExpire: () => {
-      if (!hasSubmitted) {
-        reminderOpen();
-        externalPlay();
-      }
-    }});
+    useTimer({
+      expiryTimestamp,
+      onExpire: () => {
+        if (!hasSubmitted) {
+          reminderOpen();
+        }
+      },
+    });
 
     return <></>;
-  }
-
-
+  };
 
   const getContext = useCallback(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -259,7 +270,10 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     const ctx = getContext();
     ctx.clearRect(0, 0, size, size);
     drawPaths(ctx, paths);
-  }, [drawOpts, getContext, paths, size]);
+    if (currentPath) {
+      drawPaths(ctx, [currentPath]);
+    }
+  }, [drawOpts, getContext, paths, size, currentPath]);
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -273,29 +287,25 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   }, [paths, draw, undoListener]);
 
   const handleStartPath = (position: [number, number]) => {
-    setPaths((existingPaths) => [
-      ...existingPaths,
-      {
-        path: [position],
-        canvasSize: size,
-        opts: {
-          color: brushColor,
-          lineCap: "round",
-          lineJoin: "round",
-          lineWidth: brushWidth,
-        },
+    setCurrentPath({
+      path: [position],
+      canvasSize: size,
+      opts: {
+        color: brushColor,
+        lineCap: "round",
+        lineJoin: "round",
+        lineWidth: brushWidth,
       },
-    ]);
+      timestamp: new Date(),
+    });
     setIsDrawing(true);
   };
 
   const handleDrawPath = (position: [number, number]) => {
-    const lastPathIdx = paths.length - 1;
-    setPaths((currentPaths) => {
-      const lastPath = currentPaths[lastPathIdx].path;
-      lastPath.push(position);
-      currentPaths[lastPathIdx].path = lastPath;
-      return currentPaths;
+    setCurrentPath((target) => {
+      if (!target) return null;
+      target.path.push(position);
+      return target;
     });
     draw();
   };
@@ -330,6 +340,12 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
 
   const handleDrawEnd = () => {
     setIsDrawing(false);
+    if (currentPath) {
+      const copy = currentPath;
+      copy.timestamp = new Date();
+      setPaths([...paths, copy]);
+    }
+    setCurrentPath(null);
   };
 
   const handleUndo = () => {
@@ -414,6 +430,21 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
           <Title style={{ textAlign: "center" }}>
             Draw the Champion of {prompt}
           </Title>
+        )}
+        {teammates && (
+          <AvatarGroup>
+            {teammates.map((plr) => (
+              <Avatar
+                size="md"
+                src={
+                  plr.avatar_data_url
+                    ? plr.avatar_data_url
+                    : "/imgs/crackbox-logo-2.png"
+                }
+                style={{ backgroundColor: plr.color }}
+              />
+            ))}
+          </AvatarGroup>
         )}
         <Canvas
           ref={canvasRef}

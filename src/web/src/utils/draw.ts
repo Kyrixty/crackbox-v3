@@ -18,6 +18,7 @@ export interface PathData {
   path: Point[];
   canvasSize: number;
   opts: DrawPathOptions;
+  timestamp: Date;
 }
 
 export const drawPath = (ctx: CanvasRenderingContext2D, pathData: PathData) => {

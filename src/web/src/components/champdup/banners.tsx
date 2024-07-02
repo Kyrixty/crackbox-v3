@@ -29,7 +29,7 @@ export const PromptBanner = ({ prompt }: { prompt: string }) => {
       <Group justify="center">
         <Stack align="center">
           <Title c="black">THE CHAMPION OF</Title>
-          <Box bg="black" style={{ borderRadius: 10 }} p={"20px 80px"}>
+          <Box bg="black" style={{ textAlign: "center", borderRadius: 10 }} p={"20px 80px"}>
             <Title c="white" order={2}>
               {prompt.toUpperCase()}
             </Title>
