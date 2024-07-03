@@ -89,6 +89,8 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     SPONSOR = "SPONSOR"
     PM = "PM"
     NOTIFY = "NOTIFY"
+    PATH = "PATH"
+    CLEAR = "CLEAR"
     IMAGE = "IMAGE"
     IMAGE_SUBMITS = "IMAGE_SUBMITS"
     IMAGE_SWAP = "IMAGE_SWAP" # Not available in bonus round
@@ -368,6 +370,7 @@ class TeamsManager:
         self.p_team_map: PLAYER_TEAMS_MAP = {}
         self.prompt_pool = prompts.copy()
         self.prompts: dict[TEAM_ID, str] = {}
+        self.team_path_store: dict[TEAM_ID, list[dict]] = {}
 
         self.images: dict[TEAM_ID, Image] = {}
         self.team_ctr_map: dict[TEAM_ID, TEAM_ID] = {}
@@ -384,6 +387,18 @@ class TeamsManager:
             self.prompt_pool = custom_prompts.copy()
             return
         self.prompt_pool.extend(custom_prompts)
+    
+    def add_player_path_to_team(self, username: str, path: dict) -> None:
+        team_id = self.get_player_team_id_by_username(username)
+        if not team_id in self.team_path_store:
+            self.team_path_store[team_id] = []
+        self.team_path_store[team_id].append(path)
+    
+    def get_player_paths_by_username(self, username: str) -> list[dict]:
+        team_id = self.get_player_team_id_by_username(username)
+        if not team_id in self.team_path_store:
+            return []
+        return self.team_path_store[team_id]
     
     def get_team_prompt(self, team_id: TEAM_ID) -> str:
         return self.prompts[team_id]
@@ -402,6 +417,7 @@ class TeamsManager:
         self.ctrs: dict[TEAM_ID, Image] = {}
         self.prompt_pool = prompts.copy()
         self.prompts: dict[TEAM_ID, str] = {}
+        self.team_path_store: dict[TEAM_ID, list] = {}
 
     def get_player(self, username: str) -> Player:
         for plr in self.players:
@@ -495,6 +511,10 @@ class TeamsManager:
             pcopy.remove(prompt)
             self.prompts[team_id] = prompt
             self.images[team_id] = Image(title=get_random_title("This team"), dUri=didnt_draw_data_uri, artists=self.get_players_from_team(team_id), prompt=prompt)
+    
+    def reset_team_path_stores(self) -> None:
+        for team_id in self.teams:
+            self.team_path_store[team_id] = []
 
     
     def has_teams(self) -> bool:
@@ -571,6 +591,7 @@ class ChampdUp(Game):
                     self.get_public_field("custom_prompts"),
                     self.get_public_field("custom_prompts_only"),
                 )
+                self.teams_manager.reset_team_path_stores()
             if event.name == "D1":
                 self.draw_manager.process_custom_prompts(
                     self.get_public_field("custom_prompts"),
@@ -582,6 +603,7 @@ class ChampdUp(Game):
         if event.name in ("C1", "C2", "BC"):
             if event.name == "BC":
                 self.teams_manager.create_counters()
+                self.teams_manager.reset_team_path_stores()
             self.ctr_manager.reset()
             self.ready_manager.reset(self.get_player_list())
             self.ctr_manager.players = self.get_player_list()
@@ -620,8 +642,9 @@ class ChampdUp(Game):
         if not whitelist and not blacklist:
             await self.publish(msg.type, msg.value, msg.author)
         if whitelist:
-            for username in whitelist:
-                await self.send(self.ws_map[username], msg)
+            for username in self.ws_map:
+                if username in whitelist:
+                    await self.send(self.ws_map[username], msg)
         else:
             for username in self.ws_map:
                 if username not in blacklist:
@@ -858,6 +881,8 @@ class ChampdUp(Game):
                 team = self.teams_manager.get_team_by_id(team_id)
                 teammates = [self.get_player(uname).data for uname in team if uname != username]
                 event_data["team"] = teammates
+                paths_chunk = self.teams_manager.get_player_paths_by_username(username)
+                event_data["paths_chunk"] = paths_chunk
         if self.get_current_event().name == "L":
             event_data = {
                 "leaderboard": self.leaderboard,
@@ -1075,7 +1100,7 @@ class ChampdUp(Game):
         if msg.type == MessageType.POLL_VOTE:
             if msg.value.lower() in ("yes", "no"):
                 return self.handle_poll_vote(msg.value.lower(), username)
-        if self.get_current_event().name in ("V1", "V2"):
+        if self.get_current_event().name in ("V1", "V2", "BV"):
             if msg.type == MessageType.MATCHUP_START:
                 # check if we can skip
                 if all(
@@ -1172,6 +1197,38 @@ class ChampdUp(Game):
                         self.debug("PUNGENT")
                         return pm
                     pm.add_broadcast(MessageType.IMAGE_SUBMITS, self.ready_manager.ready, 0)
+        if self.get_current_event().name in ("BD", "BC"):
+            if msg.type == MessageType.PATH and type(msg.value) == dict and "path" in msg.value and "dUri" in msg.value:
+                if not msg.value["dUri"]:
+                    msg.value["dUri"] = didnt_draw_data_uri
+                team_id = self.teams_manager.get_player_team_id_by_username(username)
+                team = self.teams_manager.get_team_by_id(team_id).copy()
+                team.remove(username)
+                # store path
+                self.teams_manager.add_player_path_to_team(username, msg.value["path"])
+                await self.filter_send(
+                    MessageSchema(
+                        type=MessageType.PATH,
+                        value=msg.value,
+                        author=self.get_player(username).data
+                    ),
+                    team,
+                )
+                return pm
+            if msg.type == MessageType.CLEAR:
+                team_id = self.teams_manager.get_player_team_id_by_username(username)
+                team = self.teams_manager.get_team_by_id(team_id).copy()
+                team.remove(username)
+                # Set team img to empty dUri?
+                await self.filter_send(
+                    MessageSchema(
+                        type=MessageType.CLEAR,
+                        value=None,
+                        author=self.get_player(username).data
+                    ),
+                    team,
+                )
+
         if self.get_current_event().name in ("V1", "V2", "BV"):
             if msg.type == MessageType.MATCHUP_VOTE:
                 if not self.matchup_manager.has_started() or not self.matchup_manager.voting_enabled:

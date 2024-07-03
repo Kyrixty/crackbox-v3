@@ -166,6 +166,8 @@ export enum MessageType {
   STATE = "STATE",
   IMAGE = "IMAGE",
   NOTIFY = "NOTIFY",
+  CLEAR = "CLEAR",
+  PATH = "PATH",
 }
 
 export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
@@ -212,9 +214,10 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [showReminder, { open: reminderOpen, close: reminderClose }] =
     useDisclosure(false);
-  const { currentEvent } = useChampdUpContext();
+  const { currentEvent, currentEventData } = useChampdUpContext();
   const [reminderExpires, setReminderExpires] = useState<Date | null>(null);
   const [currentPath, setCurrentPath] = useState<PathData | null>(null);
+  const [multiplayerEnabled, setMPEnabled] = useState(false);
 
   useEffect(() => {
     if (!gameData) return;
@@ -266,6 +269,15 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     return ctx;
   }, [canvasRef]);
 
+  useEffect(() => {
+    if (currentEvent === null) return;
+    if (currentEvent.name.startsWith("B")) {
+      setMPEnabled(true);
+    } else {
+      setMPEnabled(false);
+    }
+  }, [currentEvent]);
+
   const draw = useCallback(() => {
     const ctx = getContext();
     ctx.clearRect(0, 0, size, size);
@@ -296,7 +308,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
         lineJoin: "round",
         lineWidth: brushWidth,
       },
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     });
     setIsDrawing(true);
   };
@@ -342,8 +354,15 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
     setIsDrawing(false);
     if (currentPath) {
       const copy = currentPath;
-      copy.timestamp = new Date();
+      copy.timestamp = new Date().toISOString();
       setPaths([...paths, copy]);
+      sendJsonMessage({
+        type: MessageType.PATH,
+        value: {
+          path: currentPath,
+          dUri: canvasRef.current ? getDataURL(canvasRef.current) : "",
+        }
+      })
     }
     setCurrentPath(null);
   };
@@ -359,6 +378,10 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const handleClear = () => {
     if (!canvasRef.current) return;
     setPaths(() => []);
+    sendJsonMessage({
+      type: MessageType.CLEAR,
+      value: null,
+    });
   };
 
   const handleSubmit = () => {
@@ -399,7 +422,20 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
           ),
       });
     }
+    if (lastJsonMessage.type === MessageType.CLEAR) {
+      setPaths([]);
+    }
+    if (lastJsonMessage.type === MessageType.PATH) {
+      setPaths([...paths, lastJsonMessage.value.path]);
+    }
   }, [lastJsonMessage]);
+
+  useEffect(() => {
+    if (currentEventData === null) return;
+    if (currentEventData.paths_chunk) {
+      setPaths(currentEventData.paths_chunk);
+    }
+  }, [currentEventData])
 
   return (
     <div id="sketch-pad-wrapper" style={{ width: size }}>
@@ -490,9 +526,11 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
               </Box>
             </Popover.Dropdown>
           </Popover>
-          <ActionIcon onClick={handleUndo}>
-            <IconArrowBackUp />
-          </ActionIcon>
+          {!multiplayerEnabled && (
+            <ActionIcon onClick={handleUndo}>
+              <IconArrowBackUp />
+            </ActionIcon>
+          )}
           <ActionIcon color="red" onClick={handleClear}>
             <IconX />
           </ActionIcon>
