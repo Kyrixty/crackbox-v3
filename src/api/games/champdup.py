@@ -14,7 +14,7 @@ from fastapi import WebSocket
 from enum import Enum
 from metaenum import MetaEnum
 from terminal import Terminal
-from typing import Literal, Any, Coroutine, Callable, Tuple
+from typing import Literal, List, Dict, Union, Any, Coroutine, Callable, Tuple
 from pydantic import BaseModel
 from globals import MAX_USERNAME_LENGTH, DEBUG
 from fuzzywuzzy import fuzz
@@ -38,7 +38,7 @@ task_threads = []
 task_threads_lock = threading.Lock()
 
 class Timer:
-    def __init__(self, name: str, t: Terminal, callback: Coroutine | Callable | None = None) -> None:
+    def __init__(self, name: str, t: Terminal, callback: Union[Coroutine, Callable, None] = None) -> None:
         self.name = name
         self.callback = callback
         self.finished = False
@@ -161,7 +161,7 @@ class ImageMatchup(BaseModel):
 class MatchupManager:
     def __init__(self) -> None:
         self._idx = -1
-        self.matchups: list[ImageMatchup] = []
+        self.matchups: List[ImageMatchup] = []
         self.voting_enabled = False
     
     def has_started(self) -> bool:
@@ -204,10 +204,10 @@ def get_random_title(username: str) -> str:
     return t
 
 class DrawManager:
-    def __init__(self, player_list: list[Player]) -> None:
-        self.images: dict[str, Image] = {}
+    def __init__(self, player_list: List[Player]) -> None:
+        self.images: Dict[str, Image] = {}
         self.prompt_pool = prompts.copy()
-        self.prompts: dict[str, str] = {}
+        self.prompts: Dict[str, str] = {}
         self.players = player_list
         self.reset()
     
@@ -215,10 +215,10 @@ class DrawManager:
         img.last_changed = datetime.datetime.now().isoformat()
         self.images[username] = img
     
-    def get_images(self) -> list[Image]:
+    def get_images(self) -> List[Image]:
         return list(self.images.values())
     
-    def process_custom_prompts(self, custom_prompts: list[str], custom_prompts_only: bool) -> None:
+    def process_custom_prompts(self, custom_prompts: List[str], custom_prompts_only: bool) -> None:
         if len(custom_prompts) == 0:
             return
         if custom_prompts_only:
@@ -238,7 +238,7 @@ class DrawManager:
             self.prompts[player.username] = prompt
             self.images[player.username] = Image(title=get_random_title(player.username), dUri=didnt_draw_data_uri, artists=[player], prompt=prompt)
 
-    def create_counters(self) -> dict[str, Image]:
+    def create_counters(self) -> Dict[str, Image]:
         plrs = self.players
         offset = random.randint(1, len(plrs) - 1)
         # Get counters by applying an offset to each player
@@ -250,17 +250,17 @@ class DrawManager:
         return ctrImgMap
 
 class CounterManager:
-    def __init__(self, ctr_img_map: dict[str, Image], player_list: list[Player]) -> None:
-        self.ctr_img_map: dict[str, Image] = ctr_img_map
-        self.ctrs: dict[str, Image] = {}
+    def __init__(self, ctr_img_map: Dict[str, Image], player_list: List[Player]) -> None:
+        self.ctr_img_map: Dict[str, Image] = ctr_img_map
+        self.ctrs: Dict[str, Image] = {}
         self.players = player_list
     
-    def set_ctr_img_map(self, map: dict[str, Image]):
+    def set_ctr_img_map(self, map: Dict[str, Image]):
         self.ctr_img_map = map
         for player in self.players:
             self.ctrs[player.username] = Image(title=get_random_title(player.username), dUri=didnt_draw_data_uri, artists=[player], prompt=random.choice(prompts))
 
-    def get_matchups(self) -> list[ImageMatchup]:
+    def get_matchups(self) -> List[ImageMatchup]:
         '''Returns a shuffled version of the matchups.'''
         matchups = []
         for og, ctr in zip(self.ctr_img_map.values(), self.ctrs.values()):
@@ -281,9 +281,9 @@ class ReadyManager:
 
     def __init__(self) -> None:
         self.ready = set()
-        self.players: list[Player] = []
+        self.players: List[Player] = []
 
-    def reset(self, player_list: list[Player]) -> None:
+    def reset(self, player_list: List[Player]) -> None:
         self.ready = set()
         self.players = player_list
     
@@ -299,7 +299,7 @@ class StoreImage(BaseModel):
     image_hash: str
 
 class PlayerImageStore:
-    store: dict[str, dict[str, StoreImage]]
+    store: Dict[str, Dict[str, StoreImage]]
 
     def __init__(self) -> None:
         self.store = {}
@@ -309,10 +309,10 @@ class PlayerImageStore:
             self.store[p.username] = {}
         self.store[p.username][event_name] = StoreImage(image=img, image_hash=hashlib.sha256(str(img).encode("utf-8")).hexdigest())
     
-    def get_store(self) -> dict[str, list[Image]]:
+    def get_store(self) -> Dict[str, List[Image]]:
         return self.store
     
-    def get_plr_store(self, p: Player, event_blacklist: list[str] = []) -> list[StoreImage]:
+    def get_plr_store(self, p: Player, event_blacklist: List[str] = []) -> List[StoreImage]:
         if p.username not in self.store:
             return []
         store = []
@@ -323,7 +323,7 @@ class PlayerImageStore:
                 store.append(self.store[p.username][event_name])
         return store
     
-    def get_plr_image_from_hash(self, username: str, hash: str) -> Image | None:
+    def get_plr_image_from_hash(self, username: str, hash: str) -> Union[Image, None]:
         if username not in self.store:
             return None
         for event_name in self.store[username]:
@@ -338,14 +338,14 @@ class PlayerImageStore:
 class Event(BaseModel):
     name: str
     timed: bool
-    ends: str | None = None
+    ends: Union[str, None] = None
 
     def is_active(self) -> bool:
         return datetime.datetime.fromisoformat(self.ends) > datetime.datetime.now()
 
 class LeaderboardImage(BaseModel):
     image: Image
-    awards: list[Award]
+    awards: List[Award]
 
 RUNNING_EVENTS = ["D1", "C1", "V1", "D2", "C2", "V2", "BD", "BC", "BV", "L"]
 
@@ -365,18 +365,18 @@ class TeamsManager:
     '''The game must have at least 4 players
     for the bonus round to work.'''
     def __init__(self) -> None:
-        self.players: list[Player] = []
+        self.players: List[Player] = []
         self.teams: TEAMS = {}
         self.p_team_map: PLAYER_TEAMS_MAP = {}
         self.prompt_pool = prompts.copy()
-        self.prompts: dict[TEAM_ID, str] = {}
-        self.team_path_store: dict[TEAM_ID, list[dict]] = {}
+        self.prompts: Dict[TEAM_ID, str] = {}
+        self.team_path_store: Dict[TEAM_ID, List[dict]] = {}
 
-        self.images: dict[TEAM_ID, Image] = {}
-        self.team_ctr_map: dict[TEAM_ID, TEAM_ID] = {}
-        self.ctrs: dict[TEAM_ID, Image] = {}
+        self.images: Dict[TEAM_ID, Image] = {}
+        self.team_ctr_map: Dict[TEAM_ID, TEAM_ID] = {}
+        self.ctrs: Dict[TEAM_ID, Image] = {}
     
-    def get_players_from_team(self, team_id: TEAM_ID) -> list[Player]:
+    def get_players_from_team(self, team_id: TEAM_ID) -> List[Player]:
         '''Ensure team_id is valid otherwise KeyError is raised'''
         return [self.get_player(uname) for uname in self.get_team_by_id(team_id)]
     
@@ -526,7 +526,7 @@ class TeamsManager:
     def get_player_team_id_by_username(self, username: str) -> TEAM_ID:
         return self.p_team_map[username]
     
-    def get_team_by_id(self, id: TEAM_ID) -> list[str]:
+    def get_team_by_id(self, id: TEAM_ID) -> List[str]:
         return self.teams[id]
 
 class IVRMode(str, Enum, metaclass=MetaEnum):

@@ -5,7 +5,7 @@ import string
 import anyio
 import json
 
-from typing import TYPE_CHECKING,  Dict, List, Any, Union, TypeVar, Literal, Generic, Callable, Tuple, Coroutine
+from typing import TYPE_CHECKING, Dict, List, Any, Union, TypeVar, Literal, Generic, Callable, Tuple, Coroutine
 from terminal import Terminal
 from player import Player, create_player, ConnectionStatus, get_author_as_host
 from result import Result
@@ -25,10 +25,9 @@ global_config = Config.load_config(CONFIG_PATH)
 
 HOST_USERNAME = 0
 
-if TYPE_CHECKING:
-    Author = Player | Literal[0]
-    PublicConfig = dict[str, Any]
-    PrivateConfig = dict[str, Any]
+Author = Union[Player, Literal[0]]
+PublicConfig = Dict[str, Any]
+PrivateConfig = Dict[str, Any]
 
 task_threads = []
 task_threads_lock = threading.Lock()
@@ -134,10 +133,10 @@ class ProcessedMessage(BaseModel):
     def set_action_delay(self, delay: float) -> None:
         self.action_delay = delay
     
-    def pop_next_msg_to_send(self) -> MessageSchema | None:
+    def pop_next_msg_to_send(self) -> Union[MessageSchema, None]:
         return self.msgs_to_send.pop(0)
     
-    def pop_next_msg_to_broadcast(self) -> MessageSchema | None:
+    def pop_next_msg_to_broadcast(self) -> Union[MessageSchema, None]:
         return self.msgs_to_broadcast.pop(0)
 
 
@@ -163,7 +162,7 @@ class Game(Generic[T]):
         self.broadcast = b
         self.ws_map: dict[str | int, WebSocket] = {}
     
-    def get_game_state(self, username: str | int) -> dict[str, Any]:
+    def get_game_state(self, username: str | int) -> Dict[str, Any]:
         """OVERRIDE! Retrieves the current game state which is sent to
         the player/host on reconnection. Use `username` to fetch
         game state based on player name or host. Also note that there are
@@ -185,7 +184,7 @@ class Game(Generic[T]):
         be retrieved via a custom config.'''
         return self.max_players
     
-    def get_player_list(self) -> list[Player]:
+    def get_player_list(self) -> List[Player]:
         return list(self.players.values())
     
     def _gen_id(self) -> None:
@@ -222,15 +221,15 @@ class Game(Generic[T]):
         r.Ok(p)
         return r
     
-    def get_public_config_fields(self) -> list[ConfigField]:
+    def get_public_config_fields(self) -> List[ConfigField]:
         return self.config.transpile_public_fields()
     
-    def load_public_config(self, pub: PublicConfig) -> list[tuple[str, str]]:
+    def load_public_config(self, pub: PublicConfig) -> List[Tuple[str, str]]:
         '''Can be overridden if values need to be validated.'''
         self.config.public = pub
         return []
     
-    async def publish(self, type: DefaultMessageTypes | T, value: Any, author: Author) -> None:
+    async def publish(self, type: Union[DefaultMessageTypes, T], value: Any, author: Author) -> None:
         """Wrapper around `Game.broadcast.publish`.
         
         If `author` is 0, the message will be interpreted as a server message
@@ -272,7 +271,7 @@ class Game(Generic[T]):
         else:
             await do_send()
     
-    async def handle_ws(self, ws: WebSocket, username: str | int, wsId: str) -> None:
+    async def handle_ws(self, ws: WebSocket, username: Union[str, int], wsId: str) -> None:
         self.log(f"Handling websocket {wsId}..")
         isHost = username == HOST_USERNAME
         self.ws_map[username] = ws
@@ -320,7 +319,7 @@ class Game(Generic[T]):
         except RuntimeError as e:
             self.warn(f"{wsId} is closed. Error: {e}")
     
-    async def process_message(self, ws: WebSocket, msg: MessageSchema, username: str | int) -> None:
+    async def process_message(self, ws: WebSocket, msg: MessageSchema, username: Union[str, int]) -> None:
         is_host = username == 0
         if is_host:
             pm = await self.process_host_message(ws, msg, username)

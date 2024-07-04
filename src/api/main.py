@@ -11,13 +11,14 @@ import time
 import os
 import io
 
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, Callable
+from fastapi.types import DecoratedCallable
 from result import Result
 from game import Game, GameStatus
 from player import create_player, DESCRIPTORS
 from utils import gen_rand_hex_color, gen_rand_str
 from authx import AuthX, AuthXConfig, RequestToken, TokenPayload
-from fastapi import FastAPI, Depends, Request, APIRouter, HTTPException, WebSocket
+from fastapi import FastAPI, Depends, Request, APIRouter as FastAPIRouter, HTTPException, WebSocket
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from config import Config
@@ -44,6 +45,28 @@ authConfig = AuthXConfig(
     JWT_SECRET_KEY=os.environ.get("SECRET_KEY")
 )
 
+class APIRouter(FastAPIRouter):
+    def api_route(
+        self, path: str, *, include_in_schema: bool = True, **kwargs: Any
+    ) -> Callable[[DecoratedCallable], DecoratedCallable]:
+        if path.endswith("/"):
+            path = path[:-1]
+
+        add_path = super().api_route(
+            path, include_in_schema=include_in_schema, **kwargs
+        )
+
+        alternate_path = path + "/"
+        add_alternate_path = super().api_route(
+            alternate_path, include_in_schema=False, **kwargs
+        )
+
+        def decorator(func: DecoratedCallable) -> DecoratedCallable:
+            add_alternate_path(func)
+            return add_path(func)
+
+        return decorator
+
 app = FastAPI()
 broadcast = Broadcast("memory://")
 auth = AuthX(config=authConfig)
@@ -58,6 +81,8 @@ app.add_middleware(
     allow_methods=["*"],
     expose_headers=["*"],
 )
+
+main_router = APIRouter()
 
 # :: Game map
 class GameName(str, Enum, metaclass=MetaEnum):
@@ -90,11 +115,12 @@ async def simulate_latency(request: Request, call_next):
     time.sleep(lag/1000)
     return response
 
-@app.route("/test")
+@main_router.route("/test")
 def test():
     return "TEST PASSED"
 
-@app.get("/menu-msg")
+@main_router.get("/menu-msg/")
+@main_router.get("/menu-msg")
 def get_menu_msg() -> str:
     return random.choice(msgs)
 
@@ -358,6 +384,7 @@ tmd_ctr = 0
 #     await game.play(ws, username)
 
 # :: Include routers
+app.include_router(main_router)
 app.include_router(game_router)
 
 if __name__ == "__main__":
