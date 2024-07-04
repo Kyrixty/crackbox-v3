@@ -5,7 +5,7 @@ import string
 import anyio
 import json
 
-from typing import Dict, List, Any, Union, TypeVar, Literal, Generic, Callable, Tuple, Coroutine
+from typing import TYPE_CHECKING,  Dict, List, Any, Union, TypeVar, Literal, Generic, Callable, Tuple, Coroutine
 from terminal import Terminal
 from player import Player, create_player, ConnectionStatus, get_author_as_host
 from result import Result
@@ -25,7 +25,8 @@ global_config = Config.load_config(CONFIG_PATH)
 
 HOST_USERNAME = 0
 
-Author = Player | Literal[0]
+if TYPE_CHECKING:
+    Author = Player | Literal[0]
 
 task_threads = []
 task_threads_lock = threading.Lock()

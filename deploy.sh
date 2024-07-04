@@ -7,7 +7,7 @@ echo "Building app.."
 npm run build
 
 echo "Deploying files to server.."
-scp -r build/* rt@172.105.27.148:/var/www/gaybaby/
+scp -r dist/* rt@172.105.27.148:/var/www/gaybaby/
 
 echo "Finished frontend"
 
