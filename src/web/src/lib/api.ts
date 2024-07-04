@@ -1,11 +1,12 @@
 import axios, { AxiosInstance } from "axios";
 
 export const getAPI = (token?: string): AxiosInstance => {
+  const baseURL = "https://www.gaybaby.ca/api";
   const api = axios.create({
     headers: {
       "Content-Type": "application/json",
     },
-    baseURL: "http://localhost:8000/",
+    baseURL: baseURL,
   });
   if (token) {
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;

@@ -47,7 +47,8 @@ export const GamePage = () => {
   const resolveUrl = () => {
     // !!! CHECK FOR GAME EXISTS AND ELIGIBLE TO HOST/JOIN WITH TICKET !!!
     const mode = isHost ? "host" : "play";
-    return `ws://localhost:8000/game/${mode}/${gameId}/${ticket}`;
+    const base = "www.gaybaby.ca/api";
+    return `wss://${base}/game/${mode}/${gameId}/${ticket}`;
   };
 
   // websocket

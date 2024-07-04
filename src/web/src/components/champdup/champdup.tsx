@@ -209,7 +209,9 @@ const AudioController = () => {
       stopIfCurrentExists();
       setCurrent({ play: lobbyPlay, stop: stop, sound: sound });
       lobbyPlay();
-      sound.fade(0, VOLUME, 1000);
+      if (sound) {
+        sound.fade(0, VOLUME, 1000);
+      }
     }
     if (
       currentEvent &&
@@ -222,7 +224,9 @@ const AudioController = () => {
       stopIfCurrentExists();
       setCurrent({ play: stalPlay, stop: stalStop, sound: stalSound });
       stalPlay();
-      stalSound.fade(0, VOLUME, 1000);
+      if (stalSound) {
+        stalSound.fade(0, VOLUME, 1000);
+      }
     }
     if (
       currentEvent &&
@@ -236,7 +240,9 @@ const AudioController = () => {
       stopIfCurrentExists();
       setCurrent({ play: votePlay, stop: voteStop, sound: voteSound });
       votePlay();
-      voteSound.fade(0, VOLUME, 1000);
+      if (voteSound) {
+        voteSound.fade(0, VOLUME, 1000);
+      }
     }
     if (
       currentEvent &&

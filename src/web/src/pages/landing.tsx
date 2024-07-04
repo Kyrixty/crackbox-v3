@@ -94,7 +94,7 @@ const JoinForm = (props: FormProps) => {
           setIsHost(false);
           setToken(res.data.access_token);
           setTicket(res.data.ticket);
-          redirect("/game");
+          redirect("/#/game");
         }
       });
   };
@@ -309,7 +309,7 @@ const CreateForm = (props: FormProps & CreateProps) => {
           setTicket(ticket);
           setIsHost(true);
           setUsername("Host");
-          redirect("/game");
+          redirect("/#/game");
         }
       });
     await api.get(`/game/config/${id}`).then((res) => {
@@ -391,7 +391,7 @@ export const LandingPage = () => {
   const ReconnectPrompt = () => {
     if (!canReconnect) return <></>;
     return (
-      <Text size="sm" id="reconnect-prompt" onClick={() => redirect("/game")}>
+      <Text size="sm" id="reconnect-prompt" onClick={() => redirect("/#/game")}>
         Reconnect to your previous game ({game.gameId})?
       </Text>
     );

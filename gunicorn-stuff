@@ -1,0 +1,7 @@
+install via pip (also make sure to use anaconda)
+gunicorn -k uvicorn.workers.UvicornWorker -b localhost:8000 main:app
+
+# cant find service running on port?
+sudo fuser -k <port>/tcp
+
+Also make sure you do /api/crackbox-v3 on gb server, not /crackbox-v3 (in home/gb dir)
