@@ -267,7 +267,7 @@ def join_game(id: str, username: str, payload: GameJoinPayload):
         im = im.resize((300, 300), Image.LANCZOS)
         im.save(path, "png", quality=IMAGE_COMPRESSION_QUALITY)
         im = Image.open(path)
-        base = "https://www.gaybaby.ca" # "http://localhost:8000"
+        base = "https://www.gaybaby.ca/api" # "http://localhost:8000"
         payload.avatar_data_url = f"{base}/game/players/{id}/{username}/avatar"
     p = create_player(username, 0, gen_rand_hex_color(), avatar_data_url=payload.avatar_data_url)
     r = g.join(p)
