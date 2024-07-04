@@ -27,6 +27,8 @@ HOST_USERNAME = 0
 
 if TYPE_CHECKING:
     Author = Player | Literal[0]
+    PublicConfig = dict[str, Any]
+    PrivateConfig = dict[str, Any]
 
 task_threads = []
 task_threads_lock = threading.Lock()
@@ -60,8 +62,6 @@ class ConfigField(BaseModel):
     type: ConfigFieldType
     value: Union[int, str, list]
 
-PublicConfig = dict[str, Any]
-PrivateConfig = dict[str, Any]
 
 class GenericGameConfig(BaseModel):
     '''A generic game config.
