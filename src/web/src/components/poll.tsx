@@ -18,7 +18,7 @@ import sponsor from "/audio/flipside_sponsor.wav";
 import useSound from "use-sound";
 import { useUserContext } from "@lib/context/user";
 import { randomIntFromInterval } from "@utils/rand";
-import { SponsorBanner } from "./champdup/sponsor";
+import { SponsorBanner, QuahogBanner } from "./champdup/sponsor";
 import { getSounds } from "@utils/sound";
 
 const VOLUME = 0.5;
@@ -49,6 +49,7 @@ export const Poll = (props: PollProps) => {
   const pollSounds = getSounds([amogus, fnaf2hallway], VOLUME);
   const [sponsorPlay] = useSound(sponsor, { volume: 0.8 });
   const [sponsorActive, setSponsorActive] = useState(false);
+  const [quahogActive, setQuahogActive] = useState(false);
 
   const _clearPollData = () => {
     setPollData(null);
@@ -75,6 +76,13 @@ export const Poll = (props: PollProps) => {
       if (isHost && !sponsorActive) {
         setSponsorActive(true);
         setTimeout(() => setSponsorActive(false), 8000);
+      }
+    }
+
+    if (lastJsonMessage.type === MessageType.QUAHOG) {
+      if (isHost && !quahogActive) {
+        setQuahogActive(true);
+        setTimeout(() => setQuahogActive(false), 8000);
       }
     }
     if (lastJsonMessage.type === props.poll_start_signal) {
@@ -105,6 +113,7 @@ export const Poll = (props: PollProps) => {
   return (
     <div id="poll-listener">
       <SponsorBanner mounted={sponsorActive} />
+      <QuahogBanner mounted={quahogActive} />
       <Transition
         transition="slide-right"
         duration={250}

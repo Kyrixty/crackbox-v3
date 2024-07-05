@@ -4,6 +4,7 @@ import {
   Affix,
   Avatar,
   AvatarGroup,
+  Button,
   Checkbox,
   Drawer,
   Group,
@@ -192,9 +193,10 @@ export const ChatDrawer = () => {
         title="Chat"
         zIndex={900}
         withinPortal={false}
+        size={im ? "xs" : "md"}
       >
         <div id="chat-form-container">
-          <Stack h="100%" align="stretch" justify="space-between">
+          <Stack h="75%" align="stretch" justify="space-between">
             <ScrollArea
               id="chat-scroll"
               type="scroll"
@@ -257,6 +259,7 @@ export const ChatDrawer = () => {
                     )}
                   </AvatarGroup>
                 )}
+                {im && <Button onClick={switchDrawer}>Close Chat</Button>}
                 <Checkbox
                   label="Show polls"
                   checked={showPolls}

@@ -87,6 +87,7 @@ class MessageType(str, Enum, metaclass=MetaEnum):
     POLL = "POLL"
     POLL_VOTE = "POLL_VOTE"
     SPONSOR = "SPONSOR"
+    QUAHOG = "QUAHOG"
     PM = "PM"
     NOTIFY = "NOTIFY"
     PATH = "PATH"
@@ -989,9 +990,22 @@ class ChampdUp(Game):
         text: str = msg.value
         return text.strip() == "/sponsor"
     
+    def validate_quahog_msg(self, msg: MessageSchema) -> bool:
+        if self.poll and self.poll.is_active():
+            return False
+        if type(msg.value) != str:
+            return False
+        text: str = msg.value
+        return text.strip() == "/quahog"
+    
     def prepare_sponsor_msg(self) -> ProcessedMessage:
         pm = ProcessedMessage()
         pm.add_broadcast(MessageType.SPONSOR, None, 0)
+        return pm
+    
+    def prepare_quahog_msg(self) -> ProcessedMessage:
+        pm = ProcessedMessage()
+        pm.add_broadcast(MessageType.QUAHOG, None, 0)
         return pm
     
     def prepare_poll_broadcast(self, text: str, author: int | str) -> ProcessedMessage:
@@ -1126,6 +1140,8 @@ class ChampdUp(Game):
             if self.validate_chat_msg(msg):
                 if self.validate_sponsor_msg(msg):
                     return self.prepare_sponsor_msg()
+                if self.validate_quahog_msg(msg):
+                    return self.prepare_quahog_msg()
                 if self.validate_poll_msg(msg):
                     return self.prepare_poll_broadcast(msg.value, username)
                 text: str = msg.value

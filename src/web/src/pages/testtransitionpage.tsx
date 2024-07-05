@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import useSound from "use-sound";
 import whoosh from "/audio/whoosh1.mp3";
 import fight from "/audio/fight.mp3";
+import { QuahogBanner } from "@components/champdup/sponsor";
 
 const DURATION = 1000;
 
@@ -13,6 +14,7 @@ export const TestTransitionPage = () => {
   const [Lmounted, setLMounted] = useState(false);
   const [Rmounted, setRMounted] = useState(false);
   const [fMounted, setFMounted] = useState(false);
+  const [soMounted, setSoMounted] = useState(false);
 
   const mount = () => {
     if (Rmounted) {
@@ -50,6 +52,11 @@ export const TestTransitionPage = () => {
     setTimeout(() => setFMounted(false), DURATION * 2);
   };
 
+  const toggleQuahog = () => {
+    setSoMounted(true);
+    setTimeout(() => setSoMounted(false), 8000);
+  }
+
   return (
     <Box w="100vw" p="20vw">
       <Group>
@@ -57,7 +64,9 @@ export const TestTransitionPage = () => {
         <Button onClick={toggleLeft}>Toggle left</Button>
         <Button onClick={toggleRight}>Toggle right</Button>
         <Button onClick={toggleFight}>Toggle Fight</Button>
+        <Button onClick={toggleQuahog}>Toggle Quahog</Button>
       </Group>
+      <QuahogBanner mounted={soMounted} />
       <Affix top="10vh">
         <Transition
           mounted={fMounted}

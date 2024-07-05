@@ -13,6 +13,7 @@ export enum MessageType {
   POLL = "POLL",
   POLL_VOTE = "POLL_VOTE",
   SPONSOR = "SPONSOR",
+  QUAHOG = "QUAHOG",
   PATH = "PATH",
   CLEAR = "CLEAR",
   IMAGE = "IMAGE",

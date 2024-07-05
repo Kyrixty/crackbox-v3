@@ -59,6 +59,7 @@ import reminder2 from "/audio/reminder2.m4a";
 import { getSounds } from "@utils/sound";
 import { randomIntFromInterval } from "@utils/rand";
 import { Player } from "@lib/player";
+import { isMobile } from "@utils/device";
 
 type HexColor = React.CSSProperties["color"];
 type Change = ChangeEvent<HTMLInputElement>;
@@ -218,6 +219,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   const [reminderExpires, setReminderExpires] = useState<Date | null>(null);
   const [currentPath, setCurrentPath] = useState<PathData | null>(null);
   const [multiplayerEnabled, setMPEnabled] = useState(false);
+  const im = isMobile();
 
   useEffect(() => {
     if (!gameData) return;
@@ -249,7 +251,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
   }: {
     expiryTimestamp: Date | null;
   }) => {
-    if (!expiryTimestamp) return <></>;
+    if (!expiryTimestamp || expiryTimestamp.getTime() <= new Date().getTime()) return <></>;
 
     useTimer({
       expiryTimestamp,
@@ -463,7 +465,7 @@ export const SketchPad: FC<SketchPadProps & DrawPathOptions> = (props) => {
           </>
         )}
         {prompt && (
-          <Title style={{ textAlign: "center" }}>
+          <Title order={im ? 4 : 2} style={{ textAlign: "center" }}>
             Draw the Champion of {prompt}
           </Title>
         )}
