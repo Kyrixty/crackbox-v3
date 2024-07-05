@@ -487,6 +487,7 @@ class TeamsManager:
         random.shuffle(self.players)
         plen = len(self.players)
         ctr = 0
+        players_added = set()
         for i in range(0, plen, 2):
             team_id = ctr
             if i == plen - 1:
@@ -495,14 +496,24 @@ class TeamsManager:
                 id = max(ids)
                 plr = self.players[i]
                 self.teams[id].append(plr.username)
+                self.p_team_map[plr.username] = id
+                players_added.add(plr.username)
                 break
             plr = self.players[i]
             teammate = self.players[i+1]
             self.teams[team_id] = [plr.username, teammate.username]
             self.p_team_map[plr.username] = team_id
             self.p_team_map[teammate.username] = team_id
+            players_added.add(plr.username)
+            players_added.add(teammate.username)
             ctr += 1
         
+        for plr in self.players:
+            if not plr.username in players_added:
+                team_id = random.choice(self.teams.keys())
+                self.teams[team_id].append(plr.username)
+                self.p_team_map[plr.username] = team_id
+                
         # Create prompts
         pcopy = self.prompt_pool.copy()
         for team_id in self.teams:
